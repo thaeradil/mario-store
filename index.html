@@ -74,7 +74,7 @@ main{padding:14px 16px 100px;max-width:900px;margin:0 auto}
 .promo{position:absolute;top:8px;left:8px;z-index:1;background:linear-gradient(135deg,#ff2d78,#e02fc4);color:#fff;font-size:12px;font-weight:800;padding:3px 10px;border-radius:10px;box-shadow:0 3px 10px rgba(224,47,196,.45)}
 .promo-note{display:inline-block;margin-top:8px;background:rgba(224,47,196,.12);color:#c0189f;font-weight:700;font-size:14px;padding:6px 12px;border-radius:10px}
 .inpromo{display:inline-block;margin-right:6px;font-size:11px;font-weight:700;color:var(--ok);background:rgba(18,140,74,.12);padding:1px 8px;border-radius:8px}
-.disc{display:flex;justify-content:space-between;margin-top:8px;color:var(--ok);font-weight:700}.old{text-decoration:line-through;color:var(--mute);font-weight:500;font-size:15px;margin-left:8px}
+.disc{display:flex;justify-content:space-between;margin-top:8px;color:var(--ok);font-weight:700}.old{text-decoration:line-through;color:var(--mute);font-weight:500;font-size:15px;margin-left:8px}.old{white-space:nowrap}.card .price .old,.sheet .price .old{display:block;margin:0;font-size:13px;line-height:1.3}.row .cat .old{font-size:inherit;margin-left:6px}
 .hero{position:relative;overflow:hidden;background:var(--grad);color:#fff;border-radius:24px;padding:22px 20px;margin-bottom:14px}.hero::after{content:"";position:absolute;width:180px;height:180px;border-radius:50%;background:rgba(255,255,255,.14);left:-50px;top:-60px}.hero h1{margin:0 0 6px;font-size:24px;line-height:1.3;position:relative}.hero p{margin:0 0 14px;opacity:.92;position:relative;max-width:30em}.hero a{position:relative;display:inline-block;background:#fff;color:#5a2bc4;font-weight:800;padding:9px 18px;border-radius:12px;text-decoration:none}.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:20px}.steps div{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px 6px;text-align:center;font-size:13px;font-weight:700}.steps b{display:flex;width:24px;height:24px;margin:0 auto 4px;border-radius:50%;background:var(--grad);color:#fff;align-items:center;justify-content:center;font-size:12px}.sec{margin:0 0 10px;font-size:18px}.tag{position:absolute;top:8px;right:8px;background:rgba(255,255,255,.92);color:#5a2bc4;font-size:11px;font-weight:700;padding:2px 10px;border-radius:10px;z-index:1}.foot{text-align:center;color:var(--mute);padding:28px 0 8px;font-size:14px}.foot a{color:var(--brand2);font-weight:700;text-decoration:none}.cartbar{position:fixed;left:50%;transform:translateX(-50%);width:calc(100% - 24px);max-width:560px;bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:25;display:none;align-items:center;justify-content:space-between;background:var(--grad);color:#fff;border:0;border-radius:16px;padding:14px 18px;font-weight:800;box-shadow:0 8px 24px rgba(90,43,196,.35)}
 .toast{position:fixed;bottom:calc(90px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:20px;z-index:60;font-weight:700;display:none}
 </style>
@@ -127,7 +127,11 @@ var cart = {}, cat = "الكل", term = "";
 var $ = function(id){return document.getElementById(id)};
 function fmt(n){return n.toLocaleString("en-US")+" "+CURRENCY}
 function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
-function promoOf(p){var x=p&&p.promo;if(!x||!x.label)return "";if(x.expires&&x.expires<new Date().toISOString().slice(0,10))return "";return x.label}
+function promoObj(p){var x=p&&p.promo;if(!x||!x.type||!(Number(x.value)>0))return null;if(x.expires&&x.expires<new Date().toISOString().slice(0,10))return null;return x}
+function promoOf(p){var x=promoObj(p);return x?(x.label||(x.type==="amount"?"خصم "+fmt(x.value):"خصم "+x.value+"%")):""}
+function unitPrice(p){var x=promoObj(p);if(!x)return p.price;return Math.max(0,x.type==="amount"?p.price-Number(x.value):Math.round(p.price*(1-Number(x.value)/100)))}
+function priceHtml(p){var u=unitPrice(p);return u<p.price?'<span class="old">'+fmt(p.price)+'</span>'+fmt(u):fmt(p.price)}
+function autoDisc(){var s=0;Object.keys(cart).forEach(function(id){var p=byId(id);s+=(p.price-unitPrice(p))*cart[id]});return s}
 function imgHtml(p,all){var pm=promoOf(p)?'<span class="promo">'+esc(promoOf(p))+'</span>':"";if(!p.imgs||!p.imgs.length)return '<div class="img" style="background:'+p.color+'">'+pm+esc(p.name.charAt(0))+'</div>';if(all)return '<div class="gal">'+p.imgs.map(function(s){return '<img src="'+s+'" alt="'+esc(p.name)+'">'}).join("")+'</div>';return '<div class="img" style="background:#fff">'+pm+'<span class="tag">'+esc(p.cat)+'</span><img src="'+p.imgs[0]+'" alt="'+esc(p.name)+'"></div>'}
 
 function renderChips(){
@@ -138,12 +142,12 @@ function renderGrid(){
   var list = PRODUCTS.filter(function(p){return (cat==="الكل"||p.cat===cat)&&p.name.indexOf(term)>-1});
   $("empty").hidden = list.length>0;
   $("grid").innerHTML = list.map(function(p){
-    return '<article class="card">'+imgHtml(p)+'<div class="body"><div class="name">'+esc(p.name)+'</div><div class="price">'+fmt(p.price)+'</div>'+
+    return '<article class="card">'+imgHtml(p)+'<div class="body"><div class="name">'+esc(p.name)+'</div><div class="price">'+priceHtml(p)+'</div>'+
     '<div class="btns"><button class="view" data-v="'+p.id+'">مشاهدة المنتج</button><button class="book" data-b="'+p.id+'">حجز الكمية</button></div></div></article>';
   }).join("");
 }
 function count(){return Object.keys(cart).reduce(function(s,k){return s+cart[k]},0)}
-function updBadge(){var n=count(),t=0;Object.keys(cart).forEach(function(k){t+=byId(k).price*cart[k]});$("badge").textContent=n;$("badge").style.display=n?"flex":"none";var b=$("cartbar");b.style.display=n?"flex":"none";b.innerHTML="<span>سلة الحجز ("+n+")</span><span>"+fmt(t)+"</span>"}
+function updBadge(){var n=count(),t=0;Object.keys(cart).forEach(function(k){t+=unitPrice(byId(k))*cart[k]});$("badge").textContent=n;$("badge").style.display=n?"flex":"none";var b=$("cartbar");b.style.display=n?"flex":"none";b.innerHTML="<span>سلة الحجز ("+n+")</span><span>"+fmt(t)+"</span>"}
 function toast(t){var e=$("toast");e.textContent=t;e.style.display="block";clearTimeout(toast.t);toast.t=setTimeout(function(){e.style.display="none"},1800)}
 function openSheet(h){$("sheet").innerHTML='<button class="close" data-x aria-label="إغلاق">✕</button>'+h;$("bg").classList.add("open")}
 function closeSheet(){$("bg").classList.remove("open")}
@@ -151,11 +155,11 @@ function byId(id){return PRODUCTS.filter(function(p){return p.id==id})[0]}
 
 function showProduct(id){
   var p = byId(id);
-  openSheet(imgHtml(p,true)+'<h2>'+esc(p.name)+'</h2><div class="cat">'+esc(p.cat)+'</div>'+(promoOf(p)?'<div class="promo-note">عليه '+esc(promoOf(p))+' عند استخدام كود الخصم</div>':'')+'<p class="desc">'+esc(p.desc)+'</p><div class="price" style="font-size:20px">'+fmt(p.price)+'</div><button class="primary" data-b="'+p.id+'">حجز الكمية</button>');
+  openSheet(imgHtml(p,true)+'<h2>'+esc(p.name)+'</h2><div class="cat">'+esc(p.cat)+'</div>'+(promoOf(p)?'<div class="promo-note">عليه '+esc(promoOf(p))+'، والخصم يطبّق تلقائيًا عند الحجز</div>':'')+'<p class="desc">'+esc(p.desc)+'</p><div class="price" style="font-size:20px">'+priceHtml(p)+'</div><button class="primary" data-b="'+p.id+'">حجز الكمية</button>');
 }
 function askQty(id){
   var p = byId(id), q = 1;
-  openSheet('<h2>حجز الكمية</h2><div class="row"><div><div class="name">'+esc(p.name)+'</div><div class="cat">'+fmt(p.price)+' للقطعة</div></div><div class="qty"><button data-d="-1" aria-label="أنقص">−</button><b id="qv">1</b><button data-d="1" aria-label="زِد">+</button></div></div><button class="primary" id="addBtn">أضف للسلة</button>');
+  openSheet('<h2>حجز الكمية</h2><div class="row"><div><div class="name">'+esc(p.name)+'</div><div class="cat">'+fmt(unitPrice(p))+' للقطعة</div></div><div class="qty"><button data-d="-1" aria-label="أنقص">−</button><b id="qv">1</b><button data-d="1" aria-label="زِد">+</button></div></div><button class="primary" id="addBtn">أضف للسلة</button>');
   $("sheet").onclick = function(e){
     var t = e.target;
     if(t.hasAttribute("data-x")) return closeSheet();
@@ -166,9 +170,9 @@ function askQty(id){
 var coupon=null,draft=null,cpnErr="";
 function cv(k){if(draft&&draft[k]!=null)return esc(draft[k]);try{return esc((JSON.parse(localStorage.getItem("ms_cust"))||{})[k]||"")}catch(x){return ""}}
 function keepDraft(){var g=function(i){var e=document.getElementById(i);return e?e.value:null};draft={n:g("cname"),p:g("cphone"),a:g("caddr"),c:g("ccode")}}
-function inCpn(id){return !coupon||!coupon.products||coupon.products.indexOf(String(id))>-1}
+function inCpn(id,c){c=c||coupon;return !c||((!c.products||c.products.indexOf(String(id))>-1)&&!promoObj(byId(id)))}
 function eligSum(){var s=0;Object.keys(cart).forEach(function(id){if(inCpn(id))s+=byId(id).price*cart[id]});return s}
-function discOf(total){if(!coupon)return 0;if(coupon.minTotal&&total<coupon.minTotal)return 0;var base=coupon.products?eligSum():total;var d=coupon.type==="amount"?coupon.value:Math.round(base*coupon.value/100);return Math.max(0,Math.min(d,base))}
+function discOf(total){if(!coupon)return 0;if(coupon.minTotal&&total<coupon.minTotal)return 0;var base=eligSum();var d=coupon.type==="amount"?coupon.value:Math.round(base*coupon.value/100);return Math.max(0,Math.min(d,base))}
 function applyCoupon(code){
   code=String(code||"").trim().toUpperCase();cpnErr="";
   if(!code){cpnErr="اكتب كود الخصم";return showCart()}
@@ -179,7 +183,7 @@ function applyCoupon(code){
     var c=d.exists?d.data():null,today=new Date().toISOString().slice(0,10);
     if(!c||c.active===false)cpnErr="هذا الكود غير صالح";
     else if(c.expires&&c.expires<today)cpnErr="انتهت صلاحية هذا الكود";
-    else if(c.products&&c.products.length&&!Object.keys(cart).some(function(id){return c.products.map(String).indexOf(String(id))>-1}))cpnErr="هذا الكود ما يشمل المنتجات اللي بسلتك";
+    else if(!Object.keys(cart).some(function(id){return inCpn(id,{products:(c.products&&c.products.length)?c.products.map(String):null})}))cpnErr=Object.keys(cart).every(function(id){return promoObj(byId(id))})?"المنتجات اللي بسلتك عليها عرض، والكود ما ينضاف فوق العرض":"هذا الكود ما يشمل المنتجات اللي بسلتك";
     else{coupon={code:code,type:c.type==="amount"?"amount":"percent",value:Number(c.value)||0,minTotal:Number(c.minTotal)||0,products:(c.products&&c.products.length)?c.products.map(String):null};toast("تم تطبيق الخصم")}
     showCart();
   }).catch(function(){cpnErr="تعذر التحقق من الكود، حاول مرة ثانية";showCart()});
@@ -189,11 +193,11 @@ function showCart(){
   if(!ids.length){openSheet('<h2>سلة الحجز</h2><div class="empty">السلة فارغة. اختر منتج واضغط «حجز الكمية».</div>');return}
   var total = 0;
   var rows = ids.map(function(id){var p=byId(id);total+=p.price*cart[id];
-    return '<div class="row"><div><div class="name">'+esc(p.name)+(coupon&&coupon.products&&inCpn(id)?'<span class="inpromo">مشمول بالخصم</span>':'')+'</div><div class="cat">'+fmt(p.price*cart[id])+'</div></div><div class="qty"><button data-q="'+id+'" data-d="-1" aria-label="أنقص">−</button><b>'+cart[id]+'</b><button data-q="'+id+'" data-d="1" aria-label="زِد">+</button></div></div>'}).join("");
-  var disc=discOf(total),fin=total-disc,cpnHtml;
-  if(coupon){cpnHtml='<div class="cpn-ok"><span>كود الخصم: '+esc(coupon.code)+' ('+(coupon.type==="amount"?fmt(coupon.value):coupon.value+"%")+')</span><button data-rmc="1">إزالة</button></div>'+(coupon.products&&!eligSum()?'<div class="cpn-err">هذا الكود ما يشمل المنتجات اللي بسلتك</div>':'')+(coupon.minTotal&&total<coupon.minTotal?'<div class="cpn-err">هذا الكود يشتغل على طلب بمبلغ '+fmt(coupon.minTotal)+' أو أكثر</div>':'')}
+    return '<div class="row"><div><div class="name">'+esc(p.name)+(promoOf(p)?'<span class="inpromo">'+esc(promoOf(p))+'</span>':coupon&&coupon.products&&inCpn(id)?'<span class="inpromo">مشمول بالكود</span>':'')+'</div><div class="cat">'+(unitPrice(p)<p.price?'<span class="old">'+fmt(p.price*cart[id])+'</span>':'')+fmt(unitPrice(p)*cart[id])+'</div></div><div class="qty"><button data-q="'+id+'" data-d="-1" aria-label="أنقص">−</button><b>'+cart[id]+'</b><button data-q="'+id+'" data-d="1" aria-label="زِد">+</button></div></div>'}).join("");
+  var auto=autoDisc(),net=total-auto,disc=discOf(net),fin=net-disc,cpnHtml;
+  if(coupon){cpnHtml='<div class="cpn-ok"><span>كود الخصم: '+esc(coupon.code)+' ('+(coupon.type==="amount"?fmt(coupon.value):coupon.value+"%")+')</span><button data-rmc="1">إزالة</button></div>'+(!eligSum()?'<div class="cpn-err">هذا الكود ما يشمل المنتجات اللي بسلتك (المنتجات اللي عليها عرض ما ينضاف عليها كود)</div>':'')+(coupon.minTotal&&net<coupon.minTotal?'<div class="cpn-err">هذا الكود يشتغل على طلب بمبلغ '+fmt(coupon.minTotal)+' أو أكثر</div>':'')}
   else cpnHtml='<div class="cpn"><input class="field" id="ccode" placeholder="كود الخصم (إن وجد)" autocomplete="off" autocapitalize="characters" value="'+cv("c")+'"><button id="capply">تطبيق</button></div><div class="cpn-err">'+esc(cpnErr)+'</div>';
-  var totHtml=disc?'<div class="total" style="font-size:16px;font-weight:600"><span>المجموع</span><span>'+fmt(total)+'</span></div><div class="disc"><span>الخصم</span><span>- '+fmt(disc)+'</span></div><div class="total"><span>المجموع بعد الخصم</span><span>'+fmt(fin)+'</span></div>':'<div class="total"><span>المجموع</span><span>'+fmt(total)+'</span></div>';
+  var totHtml=(auto||disc)?'<div class="total" style="font-size:16px;font-weight:600"><span>المجموع</span><span>'+fmt(total)+'</span></div>'+(auto?'<div class="disc"><span>خصم العروض</span><span>- '+fmt(auto)+'</span></div>':'')+(disc?'<div class="disc"><span>خصم الكود</span><span>- '+fmt(disc)+'</span></div>':'')+'<div class="total"><span>المجموع بعد الخصم</span><span>'+fmt(fin)+'</span></div>':'<div class="total"><span>المجموع</span><span>'+fmt(total)+'</span></div>';
   openSheet('<h2>سلة الحجز</h2>'+rows+cpnHtml+totHtml+'<input class="field" id="cname" placeholder="الاسم" autocomplete="name" value="'+cv("n")+'"><input class="field" id="cphone" type="tel" inputmode="tel" placeholder="رقم الهاتف" autocomplete="tel" value="'+cv("p")+'"><input class="field" id="caddr" placeholder="العنوان (المحافظة، المنطقة، أقرب نقطة دالة)" autocomplete="street-address" value="'+cv("a")+'"><button class="primary wa" id="send">إرسال الطلب عبر واتساب</button>');
   $("sheet").onclick = function(e){
     var t = e.target;
@@ -205,9 +209,11 @@ function showCart(){
       var name = $("cname").value.trim();
       if(!name){$("cname").focus();return toast("اكتب اسمك أولًا")}var phone=$("cphone").value.trim(),addr=$("caddr").value.trim();if(phone.replace(/\D/g,"").length<10){$("cphone").focus();return toast("اكتب رقم هاتف صحيح")}if(!addr){$("caddr").focus();return toast("اكتب عنوانك")}try{localStorage.setItem("ms_cust",JSON.stringify({n:name,p:phone,a:addr}))}catch(x){}
       var msg = "طلب حجز جديد من "+STORE+"\nالاسم: "+name+"\nرقم الهاتف: "+phone+"\nالعنوان: "+addr+"\n\n";
-      ids.forEach(function(id){var p=byId(id);msg+="• "+p.name+" × "+cart[id]+" = "+fmt(p.price*cart[id])+"\n"});
-      msg += "\nالمجموع: "+fmt(total);
-      if(disc){msg += "\nكود الخصم: "+coupon.code+(coupon.products?" على: "+ids.filter(inCpn).map(function(id){return byId(id).name}).join("، "):"")+" (- "+fmt(disc)+")\nالمجموع بعد الخصم: "+fmt(fin)}
+      ids.forEach(function(id){var p=byId(id);msg+="• "+p.name+" × "+cart[id]+" = "+fmt(unitPrice(p)*cart[id])+(promoOf(p)?" (بعد "+promoOf(p)+")":"")+"\n"});
+      msg += "\nالمجموع قبل الخصم: "+fmt(total);
+      if(auto)msg += "\nخصم العروض: - "+fmt(auto);
+      if(disc)msg += "\nكود الخصم: "+coupon.code+" على: "+ids.filter(function(id){return inCpn(id)}).map(function(id){return byId(id).name}).join("، ")+" (- "+fmt(disc)+")";
+      msg += "\n"+((auto||disc)?"المجموع بعد الخصم: ":"المجموع: ")+fmt(fin);
       window.location.href="https://wa.me/"+WHATSAPP+"?text="+encodeURIComponent(msg);
     }
   };
