@@ -17,6 +17,11 @@ label{display:block;margin-top:12px;font-weight:700;font-size:14px}
 .row{display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
 .row img,.ph{width:56px;height:56px;border-radius:10px;object-fit:contain;background:#fff;flex:none;border:1px solid var(--line)}
 .info{flex:1;min-width:0}.info b{display:block;font-size:15px}.info small{color:var(--mute)}
+.cpl{max-height:280px;overflow:auto;border:1px solid var(--line);border-radius:12px;margin-top:8px;padding:4px}
+.cpl label{display:flex;gap:10px;align-items:center;margin:0;padding:8px;font-weight:500;border-radius:10px;cursor:pointer}.cpl label:has(input:checked){background:rgba(122,53,232,.12)}
+.cpl input{width:auto;margin:0;flex:none}.cpl img,.cpl .ph{width:38px;height:38px;object-fit:contain;background:#fff;border-radius:8px;flex:none;border:1px solid var(--line)}
+.chk{display:flex!important;gap:8px;align-items:center}.chk input{width:auto;margin:0}
+.pmk{color:#c0189f;font-weight:700}
 .acts{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}.acts button{padding:6px 10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);font-size:13px}
 .off{opacity:.5}.err{color:var(--bad);min-height:1.4em;margin:8px 0 0}
 .bg{position:fixed;inset:0;background:rgba(5,15,28,.55);display:none;align-items:flex-end;justify-content:center;z-index:9}.bg.o{display:flex}
@@ -38,6 +43,9 @@ label{display:block;margin-top:12px;font-weight:700;font-size:14px}
 <label>الكود (حروف إنجليزية وأرقام)<input id="cc" placeholder="مثلًا: MARIO10" autocomplete="off" style="text-transform:uppercase" required></label>
 <label>نوع الخصم<select id="ct"><option value="percent">نسبة مئوية %</option><option value="amount">مبلغ ثابت (دينار)</option></select></label>
 <label>قيمة الخصم<input id="cvv" type="number" inputmode="numeric" min="1" required placeholder="مثلًا: 10"></label>
+<label>يطبّق على<select id="cs"><option value="all">كل المنتجات</option><option value="some">منتجات معيّنة</option></select></label>
+<div id="cpbox" hidden><input id="cpq" placeholder="ابحث عن منتج…" autocomplete="off"><div class="cpl" id="cplist"></div><small id="cpcount" style="display:block;margin-top:6px;color:var(--mute)"></small>
+<label class="chk"><input type="checkbox" id="cb" checked> إظهار علامة الخصم على صور هذه المنتجات</label></div>
 <label>أقل مبلغ للطلب (اختياري)<input id="cm" type="number" inputmode="numeric" min="0" placeholder="اتركه فارغًا لأي مبلغ"></label>
 <label>آخر يوم للكود (اختياري)<input id="ce" type="date"></label>
 <p class="err" id="cerr"></p><button class="btn" style="width:100%">+ إضافة كود</button></form></div>
@@ -63,27 +71,48 @@ function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return
 function toast(t){var e=$("toast");e.textContent=t;e.style.display="block";clearTimeout(toast.t);toast.t=setTimeout(function(){e.style.display="none"},2600)}
 var items=[],eid=null,imgs=[],auth,db;
 try{firebase.initializeApp(FBC);auth=firebase.auth();db=firebase.firestore()}catch(e){document.body.innerHTML="<p style='padding:20px'>تعذر تحميل Firebase. تأكد من الإنترنت.</p>"}
-auth.onAuthStateChanged(function(u){$("login").hidden=!!u;$("app").hidden=!u;if(u){load();loadC()}});
+auth.onAuthStateChanged(function(u){$("login").hidden=!!u;$("app").hidden=!u;if(u){load();loadC(true)}});
 var coupons=[];
 function fmtN(n){return Number(n||0).toLocaleString("en-US")}
-function loadC(){db.collection("coupons").get().then(function(s){coupons=s.docs.map(function(d){var x=d.data();x.id=d.id;return x}).sort(function(a,b){return a.id<b.id?-1:1});renderC()}).catch(function(x){$("clist").textContent="تعذر تحميل الأكواد ("+x.code+"). حدّث قواعد Firestore."})}
+var cpSel={};
+function pName(id){var p=items.filter(function(x){return x.id===id})[0];return p?p.name:"منتج محذوف"}
+function renderCP(){var q=$("cpq").value.trim().toLowerCase();
+ if(!items.length){$("cplist").innerHTML='<p style="padding:8px">ارفع المنتجات أول.</p>';return}
+ $("cplist").innerHTML=items.filter(function(p){return !q||p.name.toLowerCase().indexOf(q)>-1||String(p.cat).toLowerCase().indexOf(q)>-1}).map(function(p){var im=(p.imgs&&p.imgs[0])?'<img src="'+p.imgs[0]+'" alt="">':'<div class="ph"></div>';
+  return '<label><input type="checkbox" data-cp="'+p.id+'"'+(cpSel[p.id]?' checked':'')+'>'+im+'<span>'+esc(p.name)+'<small style="display:block;color:var(--mute)">'+esc(p.cat)+'</small></span></label>'}).join("");
+ var n=Object.keys(cpSel).length;$("cpcount").textContent=n?"تم اختيار "+n+" منتج":"اختر منتج واحد على الأقل"}
+$("cs").onchange=function(){$("cpbox").hidden=this.value!=="some";if(this.value==="some")renderCP()};
+$("cpq").oninput=renderCP;
+$("cplist").onchange=function(e){var id=e.target.dataset.cp;if(!id)return;if(e.target.checked)cpSel[id]=1;else delete cpSel[id];var n=Object.keys(cpSel).length;$("cpcount").textContent=n?"تم اختيار "+n+" منتج":"اختر منتج واحد على الأقل"};
+function promoLabel(c){return c.type==="amount"?"خصم "+fmtN(c.value)+" د.ع":"خصم "+c.value+"%"}
+function syncBadges(){
+ var today=new Date().toISOString().slice(0,10),want={};
+ coupons.forEach(function(c){if(c.active===false||(c.expires&&c.expires<today)||c.badge===false||!c.products||!c.products.length)return;
+  c.products.forEach(function(id){var cur=want[id];if(!cur||(cur.type===c.type&&c.value>cur.value)||(cur.type==="amount"&&c.type==="percent"))want[id]={type:c.type,value:c.value,expires:c.expires||null}})});
+ return db.collection("products").get().then(function(s){var b=db.batch(),n=0;
+  s.docs.forEach(function(d){var w=want[d.id],nv=w?{label:promoLabel(w),expires:w.expires}:null,ov=d.data().promo||null;
+   if(JSON.stringify(nv)!==JSON.stringify(ov)){b.update(d.ref,{promo:nv});n++}});
+  return n?b.commit().then(load):null}).catch(function(x){toast("تعذر تحديث علامات الخصم ("+x.code+")")})}
+function loadC(sync){return db.collection("coupons").get().then(function(s){coupons=s.docs.map(function(d){var x=d.data();x.id=d.id;return x}).sort(function(a,b){return a.id<b.id?-1:1});renderC();if(sync)return syncBadges()}).catch(function(x){$("clist").textContent="تعذر تحميل الأكواد ("+x.code+"). حدّث قواعد Firestore."})}
 function renderC(){
  if(!coupons.length){$("clist").innerHTML="<p>لا توجد أكواد بعد. أضف أول كود من النموذج.</p>";return}
  var today=new Date().toISOString().slice(0,10);
  $("clist").innerHTML=coupons.map(function(c){var exp=c.expires&&c.expires<today;var off=c.active===false||exp;
-  var info=(c.type==="amount"?fmtN(c.value)+" د.ع":c.value+"%")+(c.minTotal?" · لطلب من "+fmtN(c.minTotal)+" د.ع":"")+(c.expires?" · حتى "+esc(c.expires):"")+(exp?" · منتهي":c.active===false?" · موقوف":"");
+  var info=(c.type==="amount"?fmtN(c.value)+" د.ع":c.value+"%")+(c.products&&c.products.length?" · على: "+c.products.slice(0,3).map(function(id){return esc(pName(id))}).join("، ")+(c.products.length>3?" و"+(c.products.length-3)+" غيرها":"")+(c.badge===false?" (بدون علامة)":""):" · كل المنتجات")+(c.minTotal?" · لطلب من "+fmtN(c.minTotal)+" د.ع":"")+(c.expires?" · حتى "+esc(c.expires):"")+(exp?" · منتهي":c.active===false?" · موقوف":"");
   return '<div class="row'+(off?' off':'')+'"><div class="info"><b dir="ltr" style="text-align:right">'+esc(c.id)+'</b><small>'+info+'</small></div><div class="acts"><button data-ca="t" data-i="'+esc(c.id)+'">'+(c.active===false?'تفعيل':'إيقاف')+'</button><button data-ca="d" data-i="'+esc(c.id)+'">حذف</button></div></div>'}).join("")}
 $("clist").onclick=function(e){var t=e.target,a=t.dataset.ca,id=t.dataset.i;if(!a)return;var ref=db.collection("coupons").doc(id);
- if(a==="t"){var c=coupons.filter(function(x){return x.id===id})[0];ref.update({active:c.active===false}).then(loadC).catch(function(x){toast("فشل: "+x.code)})}
- if(a==="d"&&confirm("حذف الكود "+id+"؟"))ref.delete().then(function(){toast("تم حذف الكود");loadC()}).catch(function(x){toast("فشل: "+x.code)})};
+ if(a==="t"){var c=coupons.filter(function(x){return x.id===id})[0];ref.update({active:c.active===false}).then(function(){return loadC(true)}).catch(function(x){toast("فشل: "+x.code)})}
+ if(a==="d"&&confirm("حذف الكود "+id+"؟"))ref.delete().then(function(){toast("تم حذف الكود");return loadC(true)}).catch(function(x){toast("فشل: "+x.code)})};
 $("cform").onsubmit=function(e){e.preventDefault();$("cerr").textContent="";
  var code=$("cc").value.trim().toUpperCase(),type=$("ct").value,val=Number($("cvv").value),min=Number($("cm").value)||0,exp=$("ce").value||"";
  if(!/^[A-Z0-9_-]{2,30}$/.test(code)){$("cerr").textContent="الكود لازم يكون حروف إنجليزية أو أرقام بدون مسافات";return}
  if(!(val>0)){$("cerr").textContent="اكتب قيمة الخصم";return}
  if(type==="percent"&&val>100){$("cerr").textContent="النسبة لازم تكون 100 أو أقل";return}
  if(coupons.some(function(c){return c.id===code})&&!confirm("الكود "+code+" موجود. تريد تستبدله؟"))return;
- var d={type:type,value:val,active:true};if(min)d.minTotal=min;if(exp)d.expires=exp;
- db.collection("coupons").doc(code).set(d).then(function(){toast("تمت إضافة الكود "+code);$("cform").reset();loadC()}).catch(function(x){$("cerr").textContent="فشل الحفظ ("+x.code+"). تأكد من تحديث قواعد Firestore."})};
+ var scope=$("cs").value,sel=Object.keys(cpSel);
+ if(scope==="some"&&!sel.length){$("cerr").textContent="اختر المنتجات اللي يشملها الكود";return}
+ var d={type:type,value:val,active:true};if(min)d.minTotal=min;if(exp)d.expires=exp;if(scope==="some"){d.products=sel;d.badge=$("cb").checked}
+ db.collection("coupons").doc(code).set(d).then(function(){toast("تمت إضافة الكود "+code);$("cform").reset();cpSel={};$("cpbox").hidden=true;return loadC(true)}).catch(function(x){$("cerr").textContent="فشل الحفظ ("+x.code+"). تأكد من تحديث قواعد Firestore."})};
 $("lform").onsubmit=function(e){e.preventDefault();$("lerr").textContent="";auth.signInWithEmailAndPassword($("em").value.trim(),$("pw").value).catch(function(x){$("lerr").textContent="تعذر الدخول ("+x.code+")"})};
 $("out").onclick=function(){auth.signOut()};
 function load(){db.collection("products").get().then(function(s){items=s.docs.map(function(d){var x=d.data();x.id=d.id;return x}).sort(function(a,b){return (a.order||0)-(b.order||0)});render()}).catch(function(x){$("list").textContent="تعذر التحميل ("+x.code+"). تأكد من قواعد Firestore."})}
@@ -92,7 +121,7 @@ function render(){
  $("cats").innerHTML=c.map(function(x){return '<option value="'+esc(x)+'">'}).join("");
  if(!items.length){$("list").innerHTML='<p>لا توجد منتجات بقاعدة البيانات بعد.</p><button class="btn" data-a="seed" style="width:100%">رفع المنتجات الحالية ('+SEED.length+')</button>';return}
  $("list").innerHTML=items.map(function(p){var im=(p.imgs&&p.imgs[0])?'<img src="'+p.imgs[0]+'" alt="">':'<div class="ph"></div>';
-  return '<div class="row'+(p.visible===false?' off':'')+'">'+im+'<div class="info"><b>'+esc(p.name)+'</b><small>'+esc(p.cat)+' · '+Number(p.price||0).toLocaleString("en-US")+' د.ع'+(p.visible===false?' · مخفي':'')+'</small></div><div class="acts"><button data-a="e" data-i="'+p.id+'">تعديل</button><button data-a="v" data-i="'+p.id+'">'+(p.visible===false?'إظهار':'إخفاء')+'</button><button data-a="d" data-i="'+p.id+'">حذف</button></div></div>'}).join("")}
+  return '<div class="row'+(p.visible===false?' off':'')+'">'+im+'<div class="info"><b>'+esc(p.name)+'</b><small>'+esc(p.cat)+' · '+Number(p.price||0).toLocaleString("en-US")+' د.ع'+(p.visible===false?' · مخفي':'')+(p.promo&&p.promo.label?' · <span class="pmk">'+esc(p.promo.label)+'</span>':'')+'</small></div><div class="acts"><button data-a="e" data-i="'+p.id+'">تعديل</button><button data-a="v" data-i="'+p.id+'">'+(p.visible===false?'إظهار':'إخفاء')+'</button><button data-a="d" data-i="'+p.id+'">حذف</button></div></div>'}).join("")}
 function get(id){return items.filter(function(p){return p.id===id})[0]}
 $("list").onclick=function(e){var t=e.target,a=t.dataset.a,id=t.dataset.i;if(!a)return;
  if(a==="seed"){var b=db.batch();SEED.forEach(function(p,i){p.order=i+1;p.visible=true;b.set(db.collection("products").doc(),p)});b.commit().then(function(){toast("تم الرفع");load()}).catch(function(x){toast("فشل: "+x.code)})}
