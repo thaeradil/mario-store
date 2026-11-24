@@ -237,13 +237,14 @@ function showInvoice(o,msg){
   +'<p class="ivnote">إذا ما نزل الملف، صوّر القائمة سكرين شوت.</p>');
  $("sheet").onclick=function(e){var t=e.target;
   if(t.hasAttribute("data-x"))return closeSheet();
-  if(t.id==="ivwa"){window.location.href="https://wa.me/"+WHATSAPP+"?text="+encodeURIComponent(msg);return}
+  if(t.id==="ivwa"){openWA(msg);return}
   if(t.id==="ivpdf"||t.id==="ivshare"){var lbl=t.textContent;t.disabled=true;t.textContent="جاري تجهيز الملف…";
    ivPdf(o).then(function(blob){
     if(t.id==="ivshare"){var f=new File([blob],ivFileName(o),{type:"application/pdf"});return navigator.share({files:[f],title:"قائمة الحساب "+o.no}).catch(function(){})}
     var a=document.createElement("a"),u=URL.createObjectURL(blob);a.href=u;a.download=ivFileName(o);document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(u)},6000);toast("تم تجهيز قائمة الحساب")
    }).catch(function(){toast("تعذر تجهيز الملف، صوّر القائمة سكرين شوت")}).then(function(){t.disabled=false;t.textContent=lbl})}
  }}
+function openWA(msg){var u="https://wa.me/"+WHATSAPP+"?text="+encodeURIComponent(msg),a=document.createElement("a");a.href=u;a.target="_blank";a.rel="noopener";document.body.appendChild(a);a.click();a.remove()}
 function lastInvoice(){try{return JSON.parse(localStorage.getItem("ms_inv"))}catch(x){return null}}
 
 var coupon=null,draft=null,cpnErr="";
