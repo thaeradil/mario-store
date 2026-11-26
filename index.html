@@ -121,6 +121,7 @@ textarea.field{resize:vertical}
 .btx{position:absolute;left:0;right:0;bottom:0;display:block;padding:48px 18px 16px;background:linear-gradient(rgba(10,6,30,0),rgba(10,6,30,.8))}.btx b{display:block;font-size:20px;line-height:1.35;font-weight:800}.btx span{display:block;font-size:14px;opacity:.92;margin-top:2px}
 .sdots{display:flex;justify-content:center;gap:6px;margin-top:8px;direction:ltr}.sdots[hidden]{display:none}.sdots button{width:8px;height:8px;border-radius:4px;border:0;padding:0;background:var(--line);transition:width .25s}.sdots button.on{width:22px;background:var(--brand2)}
 @media(prefers-reduced-motion:reduce){.strack{scroll-behavior:auto}.sdots button{transition:none}}
+.loyhint{margin-top:10px;padding:9px 12px;border-radius:12px;background:rgba(122,53,232,.09);font-size:14px;line-height:1.6}.loyok{margin-top:10px;padding:10px 12px;border-radius:12px;background:rgba(18,140,74,.12);color:var(--ok);font-weight:700;font-size:14px;line-height:1.6}.loyok small,.loyhint small{display:block;font-weight:500;color:var(--mute);margin-top:2px}
 #about{margin-top:26px;scroll-margin-top:190px}.about{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px}.about p{margin:0 0 10px}.arow{display:flex;gap:10px;margin-top:6px;font-size:14px}.abtns{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.abtns button{flex:1 1 45%;padding:10px;border-radius:12px;border:1px solid var(--line);background:var(--bg);font-weight:700;color:var(--ink)}
 </style>
 </head>
@@ -271,6 +272,7 @@ function ivHtml(o){
  var sum='<div class="iv-sl"><span>المجموع</span><span>'+fmt(o.total)+'</span></div>'
   +(o.auto?'<div class="iv-sl iv-g"><span>خصم العروض</span><span>- '+fmt(o.auto)+'</span></div>':'')
   +(o.disc?'<div class="iv-sl iv-g"><span>كود الخصم ('+esc(o.code)+')</span><span>- '+fmt(o.disc)+'</span></div>':'')
+  +(o.loy?'<div class="iv-sl iv-g"><span>خصم الولاء ('+esc(o.loy.name)+' '+o.loy.pct+'%)</span><span>- '+fmt(o.loy.amount)+'</span></div>':'')
   +'<div class="iv-sl'+(o.shipFree?' iv-g':'')+'"><span>التوصيل'+(o.gov?' ('+esc(o.gov)+')':'')+'</span><span>'+esc(o.ship)+'</span></div>';
  return '<div class="iv"><div class="iv-top"></div>'
   +'<div class="iv-hd">'+(logo?'<img src="'+logo+'" alt=""/>':'<b style="font-size:28px">'+esc(STORE)+'</b>')+'<div class="iv-ttl"><h1>قائمة الحساب</h1><div>رقم الطلب: <b dir="ltr">'+esc(o.no)+'</b><br/>التاريخ: <b dir="ltr">'+esc(o.date)+'</b></div></div></div>'
@@ -342,10 +344,11 @@ function paintStatus(box,kind,t){if(!box)return;var s=box.querySelector(".ost"),
 function orderCard(o){return '<div class="ocard" data-no="'+esc(o.no)+'"><div class="oh"><b dir="ltr">'+esc(o.no)+'</b><span class="ost">…</span></div><small>'+(o.kind==="repair"?"طلب صيانة":"طلب شراء")+(o.date?' · '+esc(o.date):'')+(o.fin?' · '+fmt(o.fin):'')+'</small><div class="otl"></div></div>'}
 function showMyOrders(){
   var l=myOrders(),li=lastInvoice();
-  openSheet('<h2>📦 طلباتي</h2>'+(l.length?'<div id="olist">'+l.map(orderCard).join("")+'</div>':'<p class="desc">ما عندك طلبات على هذا الجهاز بعد.</p>')
+  openSheet('<h2>📦 طلباتي</h2><div id="loybox"></div>'+(l.length?'<div id="olist">'+l.map(orderCard).join("")+'</div>':'<p class="desc">ما عندك طلبات على هذا الجهاز بعد.</p>')
    +'<h3 class="subh">تتبع طلب برقمه</h3><div class="cpn"><input class="field" id="tno" placeholder="مثلًا: MS-261125-K7Q2" dir="ltr" autocomplete="off" style="text-transform:uppercase"><button id="tgo">تتبع</button></div><div id="tres"></div>'
    +(li&&li.o?'<button class="ivsec" id="lastinv">عرض آخر قائمة حساب ('+esc(li.o.no)+')</button>':''));
   l.forEach(function(o){fetchTrack(o.no).then(function(t){paintStatus(document.querySelector('.ocard[data-no="'+o.no+'"]'),o.kind,t)})});
+  loyCard(function(h){var x=$("loybox");if(x)x.innerHTML=h});
   $("sheet").onclick=function(e){var t=e.target;
     if(t.id==="lastinv"){var x=lastInvoice();if(x)showInvoice(x.o,x.msg);return}
     if(t.id==="tgo"){var no=$("tno").value.trim().toUpperCase().replace(/\s/g,"");if(no.length<6){$("tres").innerHTML='<p class="cpn-err">اكتب رقم الطلب كامل</p>';return}
@@ -458,6 +461,32 @@ function bannerAction(b){if(!b)return;
   t.addEventListener("click",function(e){var s=e.target.closest(".bslide");if(s)bannerAction(BANNERS[Number(s.dataset.bi)])});
   $("sdots").addEventListener("click",function(e){var b=e.target.closest("[data-si]");if(b){hold();sGo(Number(b.dataset.si))}});
   window.addEventListener("resize",function(){var i=sIndex();t.style.scrollBehavior="auto";t.scrollLeft=i*t.clientWidth;t.style.scrollBehavior=""})})();
+
+// ---- loyalty ----
+var LOY_CACHE={};
+function normPhone(p){var d=String(p||"").replace(/\D/g,"");if(d.indexOf("00964")===0)d=d.slice(2);if(d.charAt(0)==="0")d="964"+d.slice(1);if(d.length===10&&d.charAt(0)==="7")d="964"+d;return d}
+function cyrb53(str,seed){var h1=0xdeadbeef^seed,h2=0x41c6ce57^seed;for(var i=0,ch;i<str.length;i++){ch=str.charCodeAt(i);h1=Math.imul(h1^ch,2654435761);h2=Math.imul(h2^ch,1597334677)}h1=Math.imul(h1^(h1>>>16),2246822507);h1^=Math.imul(h2^(h2>>>13),3266489909);h2=Math.imul(h2^(h2>>>16),2246822507);h2^=Math.imul(h1^(h1>>>13),3266489909);return ("0000000"+(h2>>>0).toString(16)).slice(-8)+("0000000"+(h1>>>0).toString(16)).slice(-8)}
+function loyKey(p){var n=normPhone(p);return n.length>=12?"c_"+cyrb53("mario:"+n,77):""}
+function loyOn(){var L=SET.loyalty;return !!(L&&L.on&&loyTiers().length)}
+function loyTiers(){var L=SET.loyalty||{};return (L.tiers||[]).filter(function(t){return Number(t.min)>0&&Number(t.pct)>0}).map(function(t){return {name:t.name||"مميز",min:Number(t.min),pct:Number(t.pct)}}).sort(function(a,b){return a.min-b.min})}
+function loySpent(e){var cut=new Date(Date.now()-365*864e5).toISOString();return (e||[]).reduce(function(s,x){return s+(String(x.d)>=cut?Number(x.a)||0:0)},0)}
+function loyStatus(spent){var cur=null,next=null;loyTiers().forEach(function(t){if(spent>=t.min)cur=t;else if(!next)next=t});return {cur:cur,next:next,spent:spent}}
+function loyCached(phone){var k=loyKey(phone),v=k?LOY_CACHE[k]:undefined;return v==="loading"?undefined:v}
+function loyFetch(phone,cb){var k=loyKey(phone);if(!k)return cb(null);if(LOY_CACHE[k]!==undefined){if(LOY_CACHE[k]!=="loading")cb(LOY_CACHE[k]);return}LOY_CACHE[k]="loading";var d=fdb();if(!d){LOY_CACHE[k]=[];return cb([])}
+  d.collection("loyalty").doc(k).get().then(function(s){LOY_CACHE[k]=s.exists?(s.data().e||[]):[];cb(LOY_CACHE[k])}).catch(function(){LOY_CACHE[k]=[];cb([])})}
+function loyEligible(id){var p=byId(id),ex=(SET.loyalty&&SET.loyalty.exclude)||[];return !promoObj(p)&&ex.indexOf(p.cat)<0}
+function loyProgress(st){return st.next?'<div class="shipbarp"><i style="width:'+Math.min(100,Math.round(st.spent*100/st.next.min))+'%"></i></div>':''}
+function cartOpen(){return $("bg").classList.contains("open")&&!!$("send")}
+function loyCalc(ids){var R={amount:0,html:"",tier:null};if(!loyOn())return R;var phone=(draft&&draft.p!=null)?draft.p:(custSaved().p||"");
+  if(!loyKey(phone)){R.html='<div class="loyhint">🎖️ اكتب رقم هاتفك تحت حتى نشيك إذا عندك خصم ولاء</div>';return R}
+  var e=loyCached(phone);if(e===undefined){loyFetch(phone,function(){if(cartOpen()){keepDraft();showCart()}});R.html='<div class="loyhint">🎖️ جاري التحقق من خصم الولاء…</div>';return R}
+  var st=loyStatus(loySpent(e));
+  if(st.cur){var base=0;ids.forEach(function(id){if(loyEligible(id))base+=byId(id).price*cart[id]});var a=Math.round(base*st.cur.pct/100),mx=Number(SET.loyalty.max)||0;if(mx>0)a=Math.min(a,mx);R.amount=a;R.tier=st.cur;
+    R.html='<div class="loyok">🎖️ أنت زبون <b>'+esc(st.cur.name)+'</b>: خصم '+st.cur.pct+'% دائم'+(a?'':'<small>المنتجات اللي بسلتك عليها عرض أو ما يشملها الخصم</small>')+(mx>0&&a===mx?'<small>أعلى خصم بالطلب الواحد '+fmt(mx)+'</small>':'')+(st.next?'<small>باقي '+fmt(st.next.min-st.spent)+' وتصير '+esc(st.next.name)+' بخصم '+st.next.pct+'%</small>':'')+'</div>'}
+  else if(st.next){R.html='<div class="loyhint">🎖️ مشترياتك آخر 12 شهر: <b>'+fmt(st.spent)+'</b>. باقي <b>'+fmt(st.next.min-st.spent)+'</b> وتحصل خصم <b>'+st.next.pct+'%</b> دائم'+loyProgress(st)+'</div>'}
+  return R}
+function loyCard(cb){if(!loyOn())return cb("");var phone=custSaved().p||"";if(!loyKey(phone))return cb('<div class="loyhint">🎖️ عندنا برنامج ولاء: كل ما تشتري أكثر، تحصل خصم دائم يوصل لـ '+loyTiers().slice(-1)[0].pct+'%. يبدأ يتحسب من أول طلب.</div>');
+  loyFetch(phone,function(e){var st=loyStatus(loySpent(e||[]));cb('<div class="'+(st.cur?'loyok':'loyhint')+'">🎖️ '+(st.cur?'أنت زبون <b>'+esc(st.cur.name)+'</b> وعندك خصم '+st.cur.pct+'% دائم':'برنامج الولاء')+'<small>مشترياتك آخر 12 شهر: '+fmt(st.spent)+(st.next?'، باقي '+fmt(st.next.min-st.spent)+' وتحصل خصم '+st.next.pct+'% ('+esc(st.next.name)+')':'')+'</small>'+loyProgress(st)+'</div>')})}
 // ---- coupons & cart ----
 var coupon=null,draft=null,cpnErr="";
 function cv(k){if(draft&&draft[k]!=null)return esc(draft[k]);return esc(custSaved()[k]||"")}
@@ -489,15 +518,15 @@ function showCart(){
   var total = 0;
   var rows = ids.map(function(id){var p=byId(id);total+=p.price*cart[id];
     return '<div class="row"><div><div class="name">'+esc(p.name)+(p.freeShip?'<span class="inship">توصيل مجاني</span>':'')+(promoOf(p)?'<span class="inpromo">'+esc(promoOf(p))+'</span>':coupon&&coupon.products&&inCpn(id)?'<span class="inpromo">مشمول بالكود</span>':'')+'</div><div class="cat">'+(unitPrice(p)<p.price?'<span class="old">'+fmt(p.price*cart[id])+'</span>':'')+fmt(unitPrice(p)*cart[id])+'</div>'+(isOut(p)?'<div class="st st-out">نفد من المخزن، احذفه من السلة</div>':'')+'</div><div class="qty"><button data-q="'+id+'" data-d="-1" aria-label="أنقص">−</button><b>'+cart[id]+'</b><button data-q="'+id+'" data-d="1" aria-label="زِد">+</button></div></div>'}).join("");
-  var auto=autoDisc(),net=total-auto,disc=discOf(net),fin=net-disc,cpnHtml;
-  if(coupon){cpnHtml='<div class="cpn-ok"><span>كود الخصم: '+esc(coupon.code)+' ('+(coupon.type==="amount"?fmt(coupon.value):coupon.value+"%")+')</span><button data-rmc="1">إزالة</button></div>'+(!eligSum()?'<div class="cpn-err">هذا الكود ما يشمل المنتجات اللي بسلتك (المنتجات اللي عليها عرض ما ينضاف عليها كود)</div>':'')+(coupon.minTotal&&net<coupon.minTotal?'<div class="cpn-err">هذا الكود يشتغل على طلب بمبلغ '+fmt(coupon.minTotal)+' أو أكثر</div>':'')}
+  var auto=autoDisc(),net=total-auto,cdisc=discOf(net),LY=loyCalc(ids),useLoy=LY.amount>cdisc,disc=useLoy?0:cdisc,ldisc=useLoy?LY.amount:0,fin=net-disc-ldisc,cpnHtml;
+  if(coupon){cpnHtml='<div class="cpn-ok"><span>كود الخصم: '+esc(coupon.code)+' ('+(coupon.type==="amount"?fmt(coupon.value):coupon.value+"%")+')</span><button data-rmc="1">إزالة</button></div>'+(!eligSum()?'<div class="cpn-err">هذا الكود ما يشمل المنتجات اللي بسلتك (المنتجات اللي عليها عرض ما ينضاف عليها كود)</div>':'')+(coupon.minTotal&&net<coupon.minTotal?'<div class="cpn-err">هذا الكود يشتغل على طلب بمبلغ '+fmt(coupon.minTotal)+' أو أكثر</div>':'')+(useLoy&&cdisc?'<div class="cpn-err" style="color:var(--ok)">خصم الولاء أكبر من الكود، فطبقنا الأفضل لك (الخصمين ما يجتمعون)</div>':'')+(!useLoy&&cdisc&&LY.amount?'<div class="cpn-err" style="color:var(--ok)">كود الخصم أكبر من خصم الولاء، فطبقنا الكود (الخصمين ما يجتمعون)</div>':'')}
   else cpnHtml='<div class="cpn"><input class="field" id="ccode" placeholder="كود الخصم (إن وجد)" autocomplete="off" autocapitalize="characters" value="'+cv("c")+'"><button id="capply">تطبيق</button></div><div class="cpn-err">'+esc(cpnErr)+'</div>';
   var shipAll=FREE_SHIP_MIN>0&&fin>=FREE_SHIP_MIN,shipFree=shipAll?ids.slice():ids.filter(function(id){return byId(id).freeShip}),shipLeft=FREE_SHIP_MIN-fin;
   var allFree=shipAll||(shipFree.length>0&&shipFree.length===ids.length);
   var zones=SET.zones||[],govName=(draft&&draft.g!=null)?draft.g:(custSaved().g||""),zone=zones.length?zoneOf(govName):null;
   var fee=zones.length&&zone&&!allFree?Number(zone.fee)||0:0;
   var shipHint=(FREE_SHIP_MIN>0&&!allFree)?'<div class="shiphint">🚚 أضف <b>'+fmt(shipLeft)+'</b> وتحصل على <b>توصيل مجاني</b> لكل الطلب<div class="shipbarp"><i style="width:'+Math.min(100,Math.round(fin*100/FREE_SHIP_MIN))+'%"></i></div></div>':'';
-  var totHtml=(auto||disc)?'<div class="total" style="font-size:16px;font-weight:600"><span>المجموع</span><span>'+fmt(total)+'</span></div>'+(auto?'<div class="disc"><span>خصم العروض</span><span>- '+fmt(auto)+'</span></div>':'')+(disc?'<div class="disc"><span>خصم الكود</span><span>- '+fmt(disc)+'</span></div>':'')+'<div class="total" style="'+(zones.length?'font-size:16px;font-weight:600':'')+'"><span>المجموع بعد الخصم</span><span>'+fmt(fin)+'</span></div>':'<div class="total" style="'+(zones.length?'font-size:16px;font-weight:600':'')+'"><span>المجموع</span><span>'+fmt(total)+'</span></div>';
+  var totHtml=(auto||disc||ldisc)?'<div class="total" style="font-size:16px;font-weight:600"><span>المجموع</span><span>'+fmt(total)+'</span></div>'+(auto?'<div class="disc"><span>خصم العروض</span><span>- '+fmt(auto)+'</span></div>':'')+(disc?'<div class="disc"><span>خصم الكود</span><span>- '+fmt(disc)+'</span></div>':'')+(ldisc?'<div class="disc"><span>🎖️ خصم الولاء ('+esc(LY.tier.name)+' '+LY.tier.pct+'%)</span><span>- '+fmt(ldisc)+'</span></div>':'')+'<div class="total" style="'+(zones.length?'font-size:16px;font-weight:600':'')+'"><span>المجموع بعد الخصم</span><span>'+fmt(fin)+'</span></div>':'<div class="total" style="'+(zones.length?'font-size:16px;font-weight:600':'')+'"><span>المجموع</span><span>'+fmt(total)+'</span></div>';
   var shipHtml,govHtml="";
   if(zones.length){
     govHtml='<select class="field" id="cgov"><option value="">اختر المحافظة</option>'+zones.map(function(z){return '<option'+(z.n===govName?' selected':'')+'>'+esc(z.n)+'</option>'}).join("")+'</select>';
@@ -506,8 +535,9 @@ function showCart(){
   } else {
     shipHtml=shipAll?'<div class="shipline"><span>🚚 التوصيل<small>طلبك فوق '+fmt(FREE_SHIP_MIN)+'</small></span><span>مجاني</span></div>':!shipFree.length?shipHint:shipFree.length===ids.length?'<div class="shipline"><span>🚚 التوصيل</span><span>مجاني</span></div>':'<div class="shipline"><span>🚚 التوصيل مجاني لـ: '+shipFree.map(function(id){return esc(byId(id).name)}).join("، ")+'<small>توصيل باقي المنتجات نتفق عليه ويّاك</small></span></div>'+shipHint;
   }
-  openSheet('<h2>سلة الحجز</h2>'+rows+cpnHtml+govHtml+totHtml+shipHtml+'<input class="field" id="cname" placeholder="الاسم" autocomplete="name" value="'+cv("n")+'"><input class="field" id="cphone" type="tel" inputmode="tel" placeholder="رقم الهاتف" autocomplete="tel" value="'+cv("p")+'"><input class="field" id="caddr" placeholder="'+(zones.length?'العنوان (المنطقة، أقرب نقطة دالة)':'العنوان (المحافظة، المنطقة، أقرب نقطة دالة)')+'" autocomplete="street-address" value="'+cv("a")+'"><button class="primary wa" id="send">تأكيد الطلب</button>');
+  openSheet('<h2>سلة الحجز</h2>'+rows+cpnHtml+LY.html+govHtml+totHtml+shipHtml+'<input class="field" id="cname" placeholder="الاسم" autocomplete="name" value="'+cv("n")+'"><input class="field" id="cphone" type="tel" inputmode="tel" placeholder="رقم الهاتف" autocomplete="tel" value="'+cv("p")+'"><input class="field" id="caddr" placeholder="'+(zones.length?'العنوان (المنطقة، أقرب نقطة دالة)':'العنوان (المحافظة، المنطقة، أقرب نقطة دالة)')+'" autocomplete="street-address" value="'+cv("a")+'"><button class="primary wa" id="send">تأكيد الطلب</button>');
   if($("cgov"))$("cgov").onchange=function(){keepDraft();showCart()};
+  if(loyOn())$("cphone").onchange=function(){keepDraft();showCart()};
   $("sheet").onclick = function(e){
     var t = e.target;
     if(t.dataset.q){keepDraft();var id=t.dataset.q;cart[id]+=Number(t.dataset.d);if(cart[id]<1)delete cart[id];updBadge();return showCart()}
@@ -525,17 +555,19 @@ function showCart(){
       var shipText=allFree?"مجاني":zones.length?fmt(fee):shipFree.length?"مجاني لبعض المنتجات، والباقي بالاتفاق":"بالاتفاق عبر واتساب";
       var msg = "طلب حجز جديد من "+STORE+"\nرقم الطلب: "+ono+"\nالاسم: "+name+"\nرقم الهاتف: "+phone+(gov?"\nالمحافظة: "+gov:"")+"\nالعنوان: "+addr+"\n\n";
       ids.forEach(function(id){var p=byId(id);msg+="• "+p.name+" × "+cart[id]+" = "+fmt(unitPrice(p)*cart[id])+(promoOf(p)?" (بعد "+promoOf(p)+")":"")+(p.freeShip?" 🚚 توصيل مجاني":"")+"\n"});
-      if(auto||disc)msg += "\nالمجموع قبل الخصم: "+fmt(total);
+      if(auto||disc||ldisc)msg += "\nالمجموع قبل الخصم: "+fmt(total);
       if(auto)msg += "\nخصم العروض: - "+fmt(auto);
       if(disc)msg += "\nكود الخصم: "+coupon.code+" على: "+ids.filter(function(id){return inCpn(id)}).map(function(id){return byId(id).name}).join("، ")+" (- "+fmt(disc)+")";
-      msg += "\n"+((auto||disc)?"المجموع بعد الخصم: ":"المجموع: ")+fmt(fin);
+      if(ldisc)msg += "\nخصم الولاء ("+LY.tier.name+" "+LY.tier.pct+"%): - "+fmt(ldisc);
+      msg += "\n"+((auto||disc||ldisc)?"المجموع بعد الخصم: ":"المجموع: ")+fmt(fin);
       if(shipAll)msg += "\nالتوصيل: مجاني (الطلب فوق "+fmt(FREE_SHIP_MIN)+")";
       else if(zones.length)msg += "\nالتوصيل: "+shipText;
       else if(shipFree.length)msg += "\nالتوصيل: "+(shipFree.length===ids.length?"مجاني":"مجاني لـ "+shipFree.map(function(id){return byId(id).name}).join("، "));
       if(zones.length)msg += "\nالمبلغ النهائي: "+fmt(fin+fee);
-      var o={no:ono,date:ivDate(),name:name,phone:phone,addr:addr,gov:gov,total:total,auto:auto,disc:disc,code:disc?coupon.code:"",fin:fin+fee,shipFree:!!allFree,ship:shipText,
+      var loyObj=ldisc?{name:LY.tier.name,pct:LY.tier.pct,amount:ldisc}:null;
+      var o={no:ono,date:ivDate(),name:name,phone:phone,addr:addr,gov:gov,total:total,auto:auto,disc:disc,code:disc?coupon.code:"",loy:loyObj,fin:fin+fee,shipFree:!!allFree,ship:shipText,
         items:ids.map(function(id){var p=byId(id);return {n:p.name,img:(p.imgs&&p.imgs[0])||"",q:cart[id],price:p.price,unit:unitPrice(p),label:promoOf(p),free:!!p.freeShip}})};
-      var doc={no:ono,kind:"order",dateText:o.date,name:name,phone:phone,addr:addr,gov:gov,total:total,auto:auto,disc:disc,code:o.code,shipFee:zones.length?fee:null,ship:shipText,fin:fin+fee,
+      var doc={no:ono,kind:"order",dateText:o.date,name:name,phone:phone,addr:addr,gov:gov,total:total,auto:auto,disc:disc,code:o.code,loy:loyObj,shipFee:zones.length?fee:null,ship:shipText,fin:fin+fee,
         items:ids.map(function(id){var p=byId(id);return {id:String(id),n:p.name,q:cart[id],price:p.price,unit:unitPrice(p),label:promoOf(p)}})};
       saveOrder(doc);rememberOrder(doc);
       showInvoice(o,msg);
@@ -586,7 +618,7 @@ function loadProducts(){
   firebase.initializeApp(FBC);
   firebase.firestore().collection("settings").doc("shop").get().then(function(d){var s=d.exists?d.data():{};
     if(s.freeShipMin!=null){FREE_SHIP_MIN=Number(s.freeShipMin)||0;updShipHero()}
-    SET.zones=Array.isArray(s.zones)?s.zones.filter(function(z){return z&&z.n}):[];SET.about=s.about||{};renderAbout()}).catch(function(){});
+    SET.zones=Array.isArray(s.zones)?s.zones.filter(function(z){return z&&z.n}):[];SET.about=s.about||{};SET.loyalty=s.loyalty||null;renderAbout()}).catch(function(){});
   firebase.firestore().collection("banners").get().then(function(s){BANNERS=s.docs.map(function(d){var x=d.data();x.id=d.id;return x}).filter(function(b){return b.visible!==false&&b.img}).sort(function(a,b){return (a.order||0)-(b.order||0)});renderSlider()}).catch(function(){});
   firebase.firestore().collection("products").get().then(function(s){
    if(!s.empty){PRODUCTS=s.docs.map(function(d){var x=d.data();x.id=d.id;x.color="#12355b";x.imgs=x.imgs||[];return x}).filter(function(p){return p.visible!==false}).sort(function(a,b){return (a.order||0)-(b.order||0)})}

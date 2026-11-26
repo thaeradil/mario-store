@@ -42,6 +42,7 @@ label{display:block;margin-top:12px;font-weight:700;font-size:14px}
 h2.sub{font-size:17px;margin:22px 0 10px}.hint{display:block;color:var(--mute);margin-top:4px;font-size:13px;font-weight:400}
 .stk{font-weight:700}.stk-low{color:#b45309}.stk-out{color:#c62828}.stk-order{color:#1d5fbf}
 .brow{flex-wrap:wrap}.brow .acts{width:100%;justify-content:flex-start}
+.ytiers{display:grid;grid-template-columns:1.2fr 1.3fr .8fr;gap:8px;align-items:end;margin-top:10px}.ytiers b{font-size:13px;color:var(--mute);font-weight:700}.ytiers input{margin-top:0}.ywarn{margin-top:10px;padding:10px 12px;border-radius:12px;background:#fff3e0;color:#8a4b00;font-size:14px;line-height:1.7}
 </style></head><body><div class="wrap">
 <div id="login" hidden><div class="card" style="margin-top:12vh"><h1>دخول الإدارة</h1>
 <form id="lform"><label>البريد الإلكتروني<input id="em" type="email" autocomplete="username" required></label>
@@ -73,6 +74,22 @@ h2.sub{font-size:17px;margin:22px 0 10px}.hint{display:block;color:var(--mute);m
 <label>آخر يوم للكود (اختياري)<input id="ce" type="date"></label>
 <p class="err" id="cerr"></p><button class="btn" style="width:100%">+ إضافة كود</button></form></div>
 <div class="card"><div id="clist">جاري التحميل…</div></div>
+<h2 class="sub">🎖️ برنامج الولاء</h2>
+<div class="card" style="margin-bottom:12px"><form id="yform">
+<label class="chk"><input type="checkbox" id="yon"> تفعيل برنامج الولاء</label>
+<small class="hint">الزبون يحصل خصم دائم حسب مشترياته آخر 12 شهر، وتنحسب الطلبات اللي حالتها «تم التسليم» بس. نعرف الزبون من رقم هاتفه.</small>
+<div class="ytiers"><b>اسم المستوى</b><b>من مشتريات (دينار)</b><b>الخصم %</b>
+<input id="yn1" placeholder="فضي"><input id="ym1" type="number" inputmode="numeric" min="0" step="any"><input id="yp1" type="number" inputmode="numeric" min="0" max="90">
+<input id="yn2" placeholder="ذهبي"><input id="ym2" type="number" inputmode="numeric" min="0" step="any"><input id="yp2" type="number" inputmode="numeric" min="0" max="90">
+<input id="yn3" placeholder="ماسي"><input id="ym3" type="number" inputmode="numeric" min="0" step="any"><input id="yp3" type="number" inputmode="numeric" min="0" max="90"></div>
+<small class="hint">اترك المستوى فارغ إذا ما تحتاجه.</small>
+<label>أعلى خصم بالطلب الواحد (دينار، 0 = بدون حد)<input id="ymax" type="number" inputmode="numeric" min="0" step="any"></label>
+<label>أقسام ما يشملها خصم الولاء</label><div class="cpl" id="yex"></div>
+<small class="hint">حتى ما تخسر: المنتجات اللي عليها عرض ما يشملها خصم الولاء أبدًا، وخصم الولاء ما يجتمع ويا كود الخصم (ينطبق الأكبر بس).</small>
+<p class="err" id="yerr"></p><button class="btn" style="width:100%">حفظ برنامج الولاء</button>
+<button type="button" class="btn ghost" id="yrebuild" style="width:100%;margin-top:8px">إعادة حساب مشتريات كل الزبائن</button>
+<small class="hint">المشتريات تتحدث تلقائيًا كل ما تغيّر حالة طلب لـ «تم التسليم». استخدم هذا الزر أول مرة، أو إذا حسيت الأرقام مو مضبوطة.</small>
+</form></div>
 </section>
 <section data-panel="banners" hidden>
 <h2 class="sub" style="margin-top:0">صور الواجهة الإعلانية</h2>
@@ -91,7 +108,7 @@ h2.sub{font-size:17px;margin:22px 0 10px}.hint{display:block;color:var(--mute);m
 <section data-panel="settings" hidden>
 <h2 class="sub" style="margin-top:0">التوصيل المجاني</h2>
 <div class="card" style="margin-bottom:12px"><form id="sform">
-<label>التوصيل مجاني للطلب كله إذا المجموع وصل (دينار)<input id="sfm" type="number" inputmode="numeric" min="0" step="1000" placeholder="مثلًا: 100000"></label>
+<label>التوصيل مجاني للطلب كله إذا المجموع وصل (دينار)<input id="sfm" type="number" inputmode="numeric" min="0" step="any" placeholder="مثلًا: 100000"></label>
 <small style="display:block;color:var(--mute);margin-top:6px">اكتب 0 لإيقاف الميزة. المبلغ ينحسب بعد الخصومات.</small>
 <p class="err" id="serr"></p><button class="btn" style="width:100%">حفظ</button></form></div>
 <h2 class="sub">أجور التوصيل حسب المحافظة</h2>
@@ -139,7 +156,7 @@ function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return
 function toast(t){var e=$("toast");e.textContent=t;e.style.display="block";clearTimeout(toast.t);toast.t=setTimeout(function(){e.style.display="none"},2600)}
 var items=[],eid=null,imgs=[],auth,db;
 try{firebase.initializeApp(FBC);auth=firebase.auth();db=firebase.firestore()}catch(e){document.body.innerHTML="<p style='padding:20px'>تعذر تحميل Firebase. تأكد من الإنترنت.</p>"}
-auth.onAuthStateChanged(function(u){$("login").hidden=!!u;$("app").hidden=!u;if(u){load();loadC(true);loadS();loadO();loadB()}});
+auth.onAuthStateChanged(function(u){$("login").hidden=!!u;$("app").hidden=!u;if(u){load();loadC(true);loadS();loadO();loadB();loadY()}});
 var coupons=[];
 function fmtN(n){return Number(n||0).toLocaleString("en-US")}
 function loadS(){db.collection("settings").doc("shop").get().then(function(d){var S=d.exists?d.data():{},v=S.freeShipMin!=null?S.freeShipMin:null;
@@ -192,7 +209,7 @@ $("cform").onsubmit=function(e){e.preventDefault();$("cerr").textContent="";
  db.collection("coupons").doc(code).set(d).then(function(){toast("تمت إضافة الكود "+code);$("cform").reset();cpSel={};$("cpbox").hidden=true;updMode();return loadC(true)}).catch(function(x){$("cerr").textContent="فشل الحفظ ("+x.code+"). تأكد من تحديث قواعد Firestore."})};
 $("lform").onsubmit=function(e){e.preventDefault();$("lerr").textContent="";auth.signInWithEmailAndPassword($("em").value.trim(),$("pw").value).catch(function(x){$("lerr").textContent="تعذر الدخول ("+x.code+")"})};
 $("out").onclick=function(){auth.signOut()};
-function load(){db.collection("products").get().then(function(s){items=s.docs.map(function(d){var x=d.data();x.id=d.id;return x}).sort(function(a,b){return (a.order||0)-(b.order||0)});render()}).catch(function(x){$("list").textContent="تعذر التحميل ("+x.code+"). تأكد من قواعد Firestore."})}
+function load(){db.collection("products").get().then(function(s){items=s.docs.map(function(d){var x=d.data();x.id=d.id;return x}).sort(function(a,b){return (a.order||0)-(b.order||0)});render();renderYex()}).catch(function(x){$("list").textContent="تعذر التحميل ("+x.code+"). تأكد من قواعد Firestore."})}
 function render(){
  var c=["طابعات","طابعات مكاتب","حبر","قطع غيار"];items.forEach(function(p){if(c.indexOf(p.cat)<0)c.push(p.cat)});
  $("cats").innerHTML=c.map(function(x){return '<option value="'+esc(x)+'">'}).join("");
@@ -240,10 +257,10 @@ function openLink(u){var a=document.createElement("a");a.href=u;a.target="_blank
 function openOrder(id){var o=orders.filter(function(x){return x.id===id})[0];if(!o)return;var k=o.kind==="repair"?"repair":"order",L=OSL[k];
  var info='<div class="kv"><b>'+esc(o.name)+'</b><br>الهاتف: <span dir="ltr">'+esc(o.phone)+'</span>'+(o.gov?'<br>المحافظة: '+esc(o.gov):'')+(o.addr?'<br>العنوان: '+esc(o.addr):'')+'<br>التاريخ: '+esc(o.dateText||"")+'</div>';
  var body=k==="order"?'<table class="otab"><tr><th>المنتج</th><th>الكمية</th><th>المجموع</th></tr>'+(o.items||[]).map(function(it){return '<tr><td>'+esc(it.n)+(it.label?' <span class="pmk">'+esc(it.label)+'</span>':'')+'</td><td>'+it.q+'</td><td>'+fmtN(it.unit*it.q)+'</td></tr>'}).join("")+'</table>'
-   +'<div style="margin-top:8px"><div class="sl"><span>المجموع</span><span>'+fmtN(o.total)+' د.ع</span></div>'+(o.auto?'<div class="sl"><span>خصم العروض</span><span>- '+fmtN(o.auto)+'</span></div>':'')+(o.disc?'<div class="sl"><span>كود الخصم ('+esc(o.code)+')</span><span>- '+fmtN(o.disc)+'</span></div>':'')+'<div class="sl"><span>التوصيل</span><span>'+esc(o.ship||"")+'</span></div><div class="sl slb"><span>المبلغ النهائي</span><span>'+fmtN(o.fin)+' د.ع</span></div></div>'
+   +'<div style="margin-top:8px"><div class="sl"><span>المجموع</span><span>'+fmtN(o.total)+' د.ع</span></div>'+(o.auto?'<div class="sl"><span>خصم العروض</span><span>- '+fmtN(o.auto)+'</span></div>':'')+(o.disc?'<div class="sl"><span>كود الخصم ('+esc(o.code)+')</span><span>- '+fmtN(o.disc)+'</span></div>':'')+(o.loy?'<div class="sl"><span>🎖️ خصم الولاء ('+esc(o.loy.name)+' '+o.loy.pct+'%)</span><span>- '+fmtN(o.loy.amount)+'</span></div>':'')+'<div class="sl"><span>التوصيل</span><span>'+esc(o.ship||"")+'</span></div><div class="sl slb"><span>المبلغ النهائي</span><span>'+fmtN(o.fin)+' د.ع</span></div></div>'
   :'<div class="kv" style="margin-top:10px">الطابعة: <b>'+esc(o.model)+'</b><br>المشكلة: '+esc(o.problem)+(o.details?'<br>التفاصيل: '+esc(o.details):'')+'<br>الخدمة: '+(o.way==="visit"?"زيارة للموقع":"يجيبها للمحل")+'</div>';
  $("osh").innerHTML='<div class="top"><h1 dir="ltr">'+esc(o.no)+'</h1><button class="btn ghost" id="ocl">إغلاق</button></div><small style="color:var(--mute)">'+(k==="repair"?"طلب صيانة":"طلب شراء")+'</small>'+info+body
-  +'<h2 class="sub">حالة الطلب</h2><div class="stbtns">'+["new","preparing","shipping","delivered","cancelled"].map(function(s){return '<button data-st="'+s+'" class="'+(o.status===s?'on':'')+'">'+L[s]+'</button>'}).join("")+'</div><small class="hint">الزبون يشوف الحالة من «طلباتي» بالتطبيق.</small>'
+  +(o.loy?'<div class="ywarn">⚠️ هذا الطلب بيه خصم ولاء. تأكد إن رسالة الواتساب وصلتك من نفس الرقم <b dir="ltr">'+esc(o.phone)+'</b> قبل ما تأكد الطلب.</div>':'')+'<h2 class="sub">حالة الطلب</h2><div class="stbtns">'+["new","preparing","shipping","delivered","cancelled"].map(function(s){return '<button data-st="'+s+'" class="'+(o.status===s?'on':'')+'">'+L[s]+'</button>'}).join("")+'</div><small class="hint">الزبون يشوف الحالة من «طلباتي» بالتطبيق.</small>'
   +'<div style="display:flex;gap:8px;margin-top:14px"><button class="btn" id="owa" style="flex:1">مراسلة الزبون على واتساب</button><button class="btn ghost" id="odel">حذف</button></div>';
  $("obg").classList.add("o");
  $("osh").onclick=function(e){var t=e.target;if(t.id==="ocl")return $("obg").classList.remove("o");
@@ -251,7 +268,8 @@ function openOrder(id){var o=orders.filter(function(x){return x.id===id})[0];if(
   if(t.id==="owa")return openLink("https://wa.me/"+waNum(o.phone)+"?text="+encodeURIComponent("مرحبا "+o.name+"، بخصوص طلبك رقم "+o.no+" من Mario store: حالته الآن «"+L[o.status]+"»."));
   if(t.id==="odel"&&confirm("حذف الطلب "+o.no+" نهائيًا؟")){var b=db.batch();b.delete(db.collection("orders").doc(o.id));b.delete(db.collection("track").doc(o.id));b.commit().then(function(){$("obg").classList.remove("o");toast("تم حذف الطلب");loadO()}).catch(function(x){toast("فشل: "+x.code)})}
  }}
-function setStatus(o,st){var now=new Date().toISOString(),b=db.batch();b.update(db.collection("orders").doc(o.id),{status:st,updated:now});b.set(db.collection("track").doc(o.id),{status:st,date:o.date||now,kind:o.kind||"order"},{merge:true});
+function setStatus(o,st){var now=new Date().toISOString(),b=db.batch(),old=o.status;b.update(db.collection("orders").doc(o.id),{status:st,updated:now});b.set(db.collection("track").doc(o.id),{status:st,date:o.date||now,kind:o.kind||"order"},{merge:true});
+ if(o.kind!=="repair"&&(old==="delivered"||st==="delivered")){o.status=st;loyWrite(b,o.phone);o.status=old}
  b.commit().then(function(){o.status=st;toast("تم تغيير الحالة");renderO();openOrder(o.id)}).catch(function(x){toast("فشل: "+x.code)})}
 $("obg").onclick=function(e){if(e.target===$("obg"))$("obg").classList.remove("o")};
 // ===== delivery zones =====
@@ -280,7 +298,7 @@ function renderStats(){var box=$("stats");box.innerHTML="<p>جاري الحسا�
   function bars(arr,unit){if(!arr||!arr.length)return '<p class="hint">ما في بيانات بعد.</p>';var mx=arr[0][1]||1;return '<div class="bars">'+arr.map(function(t){return '<div class="bar"><i style="width:'+Math.round(t[1]*100/mx)+'%"></i><span>'+esc(t[0])+'</span><b>'+t[1]+' '+unit+'</b></div>'}).join("")+'</div>'}
   var tiles=[["طلبات هذا الشهر",mCount],["طلبات جديدة",cnt("new")],["قيد التجهيز",cnt("preparing")],["طلبات صيانة",rp.length],["مبيعات مُسلّمة",fmtN(sales)+" د.ع"],["طلبات ملغية",cnt("cancelled")]];
   box.innerHTML='<div class="tiles">'+tiles.map(function(t){return '<div class="tile"><small>'+t[0]+'</small><b>'+t[1]+'</b></div>'}).join("")+'</div>'
-   +'<h2 class="sub">الأكثر طلبًا</h2>'+bars(top,"قطعة")
+   +'<h2 class="sub">🎖️ أفضل الزبائن (آخر 12 شهر)</h2>'+bars(topCustomers(),"")+'<h2 class="sub">الأكثر طلبًا</h2>'+bars(top,"قطعة")
    +'<h2 class="sub">الأكثر مشاهدة</h2>'+(tv===null?'<p class="hint">تعذر تحميل المشاهدات. حدّث قواعد Firestore.</p>':bars(tv,"مشاهدة"))
    +'<small class="hint" style="margin-top:14px">«الأكثر طلبًا» يحسب الطلبات غير الملغية. «المبيعات المسلّمة» تحسب الطلبات اللي حالتها «تم التسليم».</small>'})}
 
@@ -308,4 +326,38 @@ $("bform").onsubmit=function(e){e.preventDefault();$("berr").textContent="";
  if((act==="product"||act==="category")&&!tg){$("berr").textContent="اختر "+(act==="product"?"المنتج":"القسم");return}
  var d={img:bImg,title:$("bt").value.trim(),sub:$("bs").value.trim(),action:act,target:tg,visible:true,order:Date.now()};
  db.collection("banners").add(d).then(function(){toast("تمت إضافة الإعلان");$("bform").reset();bImg="";$("bprev").innerHTML="";["bpbox","bcbox","bwbox"].forEach(function(i){$(i).hidden=true});loadB()}).catch(function(x){$("berr").textContent="فشل الحفظ ("+x.code+"). حدّث قواعد Firestore."})};
+
+// ===== loyalty =====
+var LOYDEF={on:false,tiers:[{name:"فضي",min:500000,pct:5},{name:"ذهبي",min:1000000,pct:10},{name:"ماسي",min:2000000,pct:15}],max:100000,exclude:null},yexSel={},yLoaded=null;
+function normPhone(p){var d=String(p||"").replace(/\D/g,"");if(d.indexOf("00964")===0)d=d.slice(2);if(d.charAt(0)==="0")d="964"+d.slice(1);if(d.length===10&&d.charAt(0)==="7")d="964"+d;return d}
+function cyrb53(str,seed){var h1=0xdeadbeef^seed,h2=0x41c6ce57^seed;for(var i=0,ch;i<str.length;i++){ch=str.charCodeAt(i);h1=Math.imul(h1^ch,2654435761);h2=Math.imul(h2^ch,1597334677)}h1=Math.imul(h1^(h1>>>16),2246822507);h1^=Math.imul(h2^(h2>>>13),3266489909);h2=Math.imul(h2^(h2>>>16),2246822507);h2^=Math.imul(h1^(h1>>>13),3266489909);return ("0000000"+(h2>>>0).toString(16)).slice(-8)+("0000000"+(h1>>>0).toString(16)).slice(-8)}
+function loyKey(p){var n=normPhone(p);return n.length>=12?"c_"+cyrb53("mario:"+n,77):""}
+function yCut(){return new Date(Date.now()-365*864e5).toISOString()}
+function loyEntries(norm){var cut=yCut();return orders.filter(function(o){return o.kind!=="repair"&&o.status==="delivered"&&normPhone(o.phone)===norm&&String(o.date||"")>=cut}).map(function(o){return {d:o.date,a:Math.max(0,(Number(o.fin)||0)-(Number(o.shipFee)||0))}})}
+function loyWrite(b,phone){var k=loyKey(phone);if(!k)return;var e=loyEntries(normPhone(phone)),ref=db.collection("loyalty").doc(k);if(e.length)b.set(ref,{e:e,u:new Date().toISOString()});else b.delete(ref)}
+function yTiers(){var T=(yLoaded&&yLoaded.tiers)||[];return T.filter(function(t){return t.min>0&&t.pct>0}).sort(function(a,b){return a.min-b.min})}
+function tierOf(spent){var c=null;yTiers().forEach(function(t){if(spent>=t.min)c=t});return c}
+function topCustomers(){var cut=yCut(),m={};orders.forEach(function(o){if(o.kind==="repair"||o.status!=="delivered"||String(o.date||"")<cut)return;var n=normPhone(o.phone);if(!n)return;m[n]=m[n]||{name:o.name,s:0};m[n].s+=Math.max(0,(Number(o.fin)||0)-(Number(o.shipFee)||0))});
+ return Object.keys(m).map(function(k){var t=tierOf(m[k].s);return [m[k].name+(t?" · "+t.name:""),m[k].s]}).sort(function(a,b){return b[1]-a[1]}).slice(0,5).map(function(x){return [x[0],fmtN(x[1])+" د.ع"]}).map(function(x,i,arr){return x})}
+function loadY(){db.collection("settings").doc("shop").get().then(function(d){var L=(d.exists&&d.data().loyalty)||null;yLoaded=L||LOYDEF;var T=yLoaded.tiers||[];
+ $("yon").checked=!!(L&&L.on);for(var i=0;i<3;i++){var t=T[i]||{};$("yn"+(i+1)).value=t.name||"";$("ym"+(i+1)).value=t.min||"";$("yp"+(i+1)).value=t.pct||""}
+ $("ymax").value=yLoaded.max!=null?yLoaded.max:100000;yexSel={};(yLoaded.exclude||[]).forEach(function(c){yexSel[c]=1});yLoaded.__fresh=!L;renderYex()}).catch(function(x){$("yerr").textContent="تعذر التحميل ("+x.code+")"})}
+function renderYex(){if(!$("yex"))return;var c=[];items.forEach(function(p){if(p.cat&&c.indexOf(p.cat)<0)c.push(p.cat)});
+ if(yLoaded&&yLoaded.__fresh&&yLoaded.exclude==null){c.forEach(function(x){if(x.indexOf("طابع")>-1)yexSel[x]=1});yLoaded.exclude=Object.keys(yexSel)}
+ $("yex").innerHTML=c.length?c.map(function(x){return '<label><input type="checkbox" data-yx="'+esc(x)+'"'+(yexSel[x]?' checked':'')+'><span>'+esc(x)+'</span></label>'}).join(""):'<p style="padding:8px">ارفع المنتجات أول.</p>'}
+$("yex").onchange=function(e){var x=e.target.dataset.yx;if(x==null)return;if(e.target.checked)yexSel[x]=1;else delete yexSel[x]};
+$("yform").onsubmit=function(e){e.preventDefault();$("yerr").textContent="";var T=[],bad="";
+ for(var i=1;i<=3;i++){var n=$("yn"+i).value.trim(),m=Number($("ym"+i).value),p=Number($("yp"+i).value);if(!n&&!$("ym"+i).value&&!$("yp"+i).value)continue;
+  if(!n||!(m>0)||!(p>0)){bad="كمّل المستوى "+i+": الاسم والمبلغ والنسبة";break}if(p>90){bad="النسبة بالمستوى "+i+" لازم تكون 90 أو أقل";break}T.push({name:n,min:m,pct:p})}
+ if(!bad){T.sort(function(a,b){return a.min-b.min});for(var j=1;j<T.length;j++){if(T[j].min===T[j-1].min)bad="كل مستوى لازم يبدأ من مبلغ مختلف";else if(T[j].pct<=T[j-1].pct)bad="المستوى الأعلى لازم يكون خصمه أكبر"}}
+ if(!bad&&$("yon").checked&&!T.length)bad="أضف مستوى واحد على الأقل";
+ if(bad){$("yerr").textContent=bad;return}
+ var L={on:$("yon").checked,tiers:T,max:Number($("ymax").value)||0,exclude:Object.keys(yexSel)};
+ db.collection("settings").doc("shop").set({loyalty:L},{merge:true}).then(function(){yLoaded=L;toast(L.on?"تم: برنامج الولاء مفعّل":"تم الحفظ (البرنامج مطفي)")}).catch(function(x){$("yerr").textContent="فشل الحفظ ("+x.code+"). حدّث قواعد Firestore."})};
+$("yrebuild").onclick=function(){var btn=this;btn.disabled=true;btn.textContent="جاري الحساب…";
+ loadO().then(function(){var phones={};orders.forEach(function(o){if(o.kind!=="repair"&&o.phone){var k=loyKey(o.phone);if(k)phones[k]=o.phone}});
+  return db.collection("loyalty").get().then(function(s){var ops=[];Object.keys(phones).forEach(function(k){ops.push(function(b){loyWrite(b,phones[k])})});s.docs.forEach(function(d){if(!phones[d.id])ops.push(function(b){b.delete(d.ref)})});
+   var chunks=[];for(var i=0;i<ops.length;i+=400)chunks.push(ops.slice(i,i+400));
+   return chunks.reduce(function(p,ch){return p.then(function(){var b=db.batch();ch.forEach(function(f){f(b)});return b.commit()})},Promise.resolve()).then(function(){toast("تم تحديث مشتريات "+Object.keys(phones).length+" زبون")})})
+ }).catch(function(x){toast("فشل: "+(x&&x.code||""))}).then(function(){btn.disabled=false;btn.textContent="إعادة حساب مشتريات كل الزبائن"})};
 </script></body></html>
