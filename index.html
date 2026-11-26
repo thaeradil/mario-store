@@ -117,7 +117,7 @@ textarea.field{resize:vertical}
 @media(prefers-reduced-motion:reduce){.lbtrack{scroll-behavior:auto}.lbdots i{transition:none}}
 .slider{position:relative;margin-bottom:14px}.strack{display:flex;align-items:stretch;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scroll-behavior:smooth;scrollbar-width:none;border-radius:24px;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}.strack::-webkit-scrollbar{display:none}
 .strack>.slide{flex:none;width:100%;min-height:230px;scroll-snap-align:center;scroll-snap-stop:always;margin:0;border-radius:0}
-.bslide{position:relative;display:block;padding:0;border:0;background:#1d1640;color:#fff;text-align:right;cursor:pointer;overflow:hidden}.bslide img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.bslide{position:relative;display:block;padding:0;border:0;background:#1d1640;color:#fff;text-align:right;cursor:pointer;overflow:hidden}.bslide img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;-webkit-user-drag:none;pointer-events:none}.bslide{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
 .btx{position:absolute;left:0;right:0;bottom:0;display:block;padding:48px 18px 16px;background:linear-gradient(rgba(10,6,30,0),rgba(10,6,30,.8))}.btx b{display:block;font-size:20px;line-height:1.35;font-weight:800}.btx span{display:block;font-size:14px;opacity:.92;margin-top:2px}
 .sdots{display:flex;justify-content:center;gap:6px;margin-top:8px;direction:ltr}.sdots[hidden]{display:none}.sdots button{width:8px;height:8px;border-radius:4px;border:0;padding:0;background:var(--line);transition:width .25s}.sdots button.on{width:22px;background:var(--brand2)}
 @media(prefers-reduced-motion:reduce){.strack{scroll-behavior:auto}.sdots button{transition:none}}
@@ -436,12 +436,12 @@ $("lb").addEventListener("click",function(e){var t=e.target;if(t.closest("[data-
 document.addEventListener("keydown",function(e){if($("lb").hidden)return;if(e.key==="Escape")closeViewer();if(e.key==="ArrowRight")lbGo(1);if(e.key==="ArrowLeft")lbGo(-1)});
 
 // ---- hero slider ----
-var BANNERS=[],sTimer=null,sHold=0;
+var BANNERS=[],sTimer=null,sHold=0,sTouch=false,SLIDE_MS=2000;
 function sCount(){return $("strack").children.length}
 function sIndex(){var t=$("strack");return Math.max(0,Math.min(sCount()-1,Math.round(t.scrollLeft/(t.clientWidth||1))))}
 function sGo(i){var t=$("strack"),n=sCount();if(n<2)return;i=(i+n)%n;t.scrollTo({left:i*t.clientWidth,behavior:"smooth"})}
 function sDots(){var n=sCount(),i=sIndex(),d=$("sdots");d.hidden=n<2;if(d.children.length!==n)d.innerHTML=Array.apply(null,{length:n}).map(function(_,j){return '<button data-si="'+j+'" aria-label="الشريحة '+(j+1)+'"></button>'}).join("");[].forEach.call(d.children,function(b,j){b.classList.toggle("on",j===i)})}
-function sAuto(){clearInterval(sTimer);if(sCount()<2)return;sTimer=setInterval(function(){if(document.hidden||Date.now()<sHold||$("bg").classList.contains("open")||!$("lb").hidden)return;sGo(sIndex()+1)},5000)}
+function sAuto(){clearInterval(sTimer);if(sCount()<2)return;sTimer=setInterval(function(){if(sTouch||document.hidden||Date.now()<sHold||$("bg").classList.contains("open")||!$("lb").hidden)return;sGo(sIndex()+1)},SLIDE_MS)}
 function renderSlider(){var t=$("strack");[].slice.call(t.querySelectorAll(".bslide")).forEach(function(e){e.remove()});
   t.insertAdjacentHTML("beforeend",BANNERS.map(function(b,i){return '<button class="slide bslide" dir="rtl" data-bi="'+i+'"><img src="'+b.img+'" alt="'+esc(b.title||"إعلان")+'"'+(i?' loading="lazy"':'')+'>'+((b.title||b.sub)?'<span class="btx">'+(b.title?'<b>'+esc(b.title)+'</b>':'')+(b.sub?'<span>'+esc(b.sub)+'</span>':'')+'</span>':'')+'</button>'}).join(""));
   t.scrollLeft=0;sDots();sAuto()}
@@ -449,8 +449,12 @@ function bannerAction(b){if(!b)return;
   if(b.action==="product"){var p=byId(b.target);if(p)return showProduct(p.id);return toast("هذا المنتج غير متوفر حاليًا")}
   if(b.action==="category"&&b.target){cat=b.target;renderChips();renderGrid();return $("list").scrollIntoView({behavior:"smooth"})}
   if(b.action==="whatsapp")return openWA(b.target||("مرحبا، أستفسر عن العرض: "+(b.title||"")))}
-(function(){var t=$("strack"),hold=function(){sHold=Date.now()+8000};
-  t.addEventListener("scroll",sDots,{passive:true});["touchstart","pointerdown","wheel"].forEach(function(ev){t.addEventListener(ev,hold,{passive:true})});
+(function(){var t=$("strack"),hold=function(){sHold=Date.now()+3000},down=function(){sTouch=true},up=function(){if(sTouch){sTouch=false;sHold=Date.now()+2500}};
+  t.addEventListener("scroll",sDots,{passive:true});
+  t.addEventListener("touchstart",down,{passive:true});["touchend","touchcancel"].forEach(function(ev){t.addEventListener(ev,up,{passive:true})});
+  t.addEventListener("pointerdown",function(e){if(e.pointerType==="mouse")down()});window.addEventListener("pointerup",function(e){if(e.pointerType==="mouse")up()});
+  t.addEventListener("pointerenter",function(e){if(e.pointerType==="mouse")down()});t.addEventListener("pointerleave",function(e){if(e.pointerType==="mouse")up()});t.addEventListener("wheel",hold,{passive:true});
+  t.addEventListener("contextmenu",function(e){if(e.target.closest(".bslide"))e.preventDefault()});
   t.addEventListener("click",function(e){var s=e.target.closest(".bslide");if(s)bannerAction(BANNERS[Number(s.dataset.bi)])});
   $("sdots").addEventListener("click",function(e){var b=e.target.closest("[data-si]");if(b){hold();sGo(Number(b.dataset.si))}});
   window.addEventListener("resize",function(){var i=sIndex();t.style.scrollBehavior="auto";t.scrollLeft=i*t.clientWidth;t.style.scrollBehavior=""})})();
