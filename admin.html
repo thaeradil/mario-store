@@ -41,6 +41,7 @@ label{display:block;margin-top:12px;font-weight:700;font-size:14px}
 .bars{display:flex;flex-direction:column;gap:8px}.bar{position:relative;padding:8px 10px;border-radius:10px;background:var(--bg);overflow:hidden;display:flex;justify-content:space-between;gap:10px;font-size:14px}.bar i{position:absolute;top:0;bottom:0;right:0;background:rgba(122,53,232,.16)}.bar span,.bar b{position:relative}
 h2.sub{font-size:17px;margin:22px 0 10px}.hint{display:block;color:var(--mute);margin-top:4px;font-size:13px;font-weight:400}
 .stk{font-weight:700}.stk-low{color:#b45309}.stk-out{color:#c62828}.stk-order{color:#1d5fbf}
+.brow{flex-wrap:wrap}.brow .acts{width:100%;justify-content:flex-start}
 </style></head><body><div class="wrap">
 <div id="login" hidden><div class="card" style="margin-top:12vh"><h1>دخول الإدارة</h1>
 <form id="lform"><label>البريد الإلكتروني<input id="em" type="email" autocomplete="username" required></label>
@@ -48,7 +49,7 @@ h2.sub{font-size:17px;margin:22px 0 10px}.hint{display:block;color:var(--mute);m
 <p class="err" id="lerr"></p><button class="btn" style="width:100%">دخول</button></form></div></div>
 <div id="app" hidden>
 <div class="top"><h1>لوحة Mario store</h1><button class="btn ghost" id="out">خروج</button></div>
-<nav class="tabs" id="tabs"><button data-tab="orders" class="on">الطلبات<span class="tb" id="newc" hidden></span></button><button data-tab="products">المنتجات</button><button data-tab="promos">الخصومات</button><button data-tab="settings">الإعدادات</button><button data-tab="stats">الإحصائيات</button></nav>
+<nav class="tabs" id="tabs"><button data-tab="orders" class="on">الطلبات<span class="tb" id="newc" hidden></span></button><button data-tab="products">المنتجات</button><button data-tab="promos">الخصومات</button><button data-tab="banners">الإعلانات</button><button data-tab="settings">الإعدادات</button><button data-tab="stats">الإحصائيات</button></nav>
 <section data-panel="orders">
 <div class="fchips" id="ofil"></div>
 <div style="display:flex;gap:8px;margin:8px 0 12px"><input id="oq" placeholder="ابحث برقم الطلب أو الاسم أو الهاتف" style="margin:0"><button class="btn ghost" id="oref" style="flex:none">تحديث</button></div>
@@ -72,6 +73,20 @@ h2.sub{font-size:17px;margin:22px 0 10px}.hint{display:block;color:var(--mute);m
 <label>آخر يوم للكود (اختياري)<input id="ce" type="date"></label>
 <p class="err" id="cerr"></p><button class="btn" style="width:100%">+ إضافة كود</button></form></div>
 <div class="card"><div id="clist">جاري التحميل…</div></div>
+</section>
+<section data-panel="banners" hidden>
+<h2 class="sub" style="margin-top:0">صور الواجهة الإعلانية</h2>
+<small class="hint">تظهر بعد البطاقة البنفسجية وتتبدل تلقائيًا كل 5 ثواني. أفضل مقاس: صورة عرضية مثل 1200×750، وخلي الكلام المهم بوسط الصورة.</small>
+<div class="card" style="margin:10px 0 12px"><form id="bform">
+<label>الصورة<input id="bimg" type="file" accept="image/*"></label><div id="bprev" style="margin-top:8px"></div>
+<label>عنوان على الصورة (اختياري)<input id="bt" maxlength="60" placeholder="مثلًا: خصم 10% على أحبار Epson"></label>
+<label>سطر ثاني (اختياري)<input id="bs" maxlength="90" placeholder="مثلًا: العرض لحد نهاية الشهر"></label>
+<label>لما يضغط الزبون على الإعلان<select id="ba"><option value="">ما يصير شي</option><option value="product">يفتح منتج</option><option value="category">يفتح قسم</option><option value="whatsapp">يراسلك على واتساب</option></select></label>
+<div id="bpbox" hidden><label>المنتج<select id="bpr"></select></label></div>
+<div id="bcbox" hidden><label>القسم<select id="bca"></select></label></div>
+<div id="bwbox" hidden><label>نص الرسالة اللي تنكتب للزبون<input id="bw" placeholder="مرحبا، أستفسر عن العرض"></label></div>
+<p class="err" id="berr"></p><button class="btn" style="width:100%">+ إضافة الإعلان</button></form></div>
+<div class="card"><div id="blist">جاري التحميل…</div></div>
 </section>
 <section data-panel="settings" hidden>
 <h2 class="sub" style="margin-top:0">التوصيل المجاني</h2>
@@ -124,7 +139,7 @@ function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return
 function toast(t){var e=$("toast");e.textContent=t;e.style.display="block";clearTimeout(toast.t);toast.t=setTimeout(function(){e.style.display="none"},2600)}
 var items=[],eid=null,imgs=[],auth,db;
 try{firebase.initializeApp(FBC);auth=firebase.auth();db=firebase.firestore()}catch(e){document.body.innerHTML="<p style='padding:20px'>تعذر تحميل Firebase. تأكد من الإنترنت.</p>"}
-auth.onAuthStateChanged(function(u){$("login").hidden=!!u;$("app").hidden=!u;if(u){load();loadC(true);loadS();loadO()}});
+auth.onAuthStateChanged(function(u){$("login").hidden=!!u;$("app").hidden=!u;if(u){load();loadC(true);loadS();loadO();loadB()}});
 var coupons=[];
 function fmtN(n){return Number(n||0).toLocaleString("en-US")}
 function loadS(){db.collection("settings").doc("shop").get().then(function(d){var S=d.exists?d.data():{},v=S.freeShipMin!=null?S.freeShipMin:null;
@@ -204,7 +219,7 @@ $("sv").onclick=function(){var n=$("fn").value.trim(),pr=Number($("fp").value);i
 
 // ===== tabs =====
 $("tabs").onclick=function(e){var b=e.target.closest("[data-tab]");if(b)showTab(b.dataset.tab)};
-function showTab(t){[].forEach.call(document.querySelectorAll("#tabs [data-tab]"),function(b){b.classList.toggle("on",b.dataset.tab===t)});[].forEach.call(document.querySelectorAll("[data-panel]"),function(p){p.hidden=p.dataset.panel!==t});if(t==="stats")renderStats();if(t==="orders")loadO()}
+function showTab(t){[].forEach.call(document.querySelectorAll("#tabs [data-tab]"),function(b){b.classList.toggle("on",b.dataset.tab===t)});[].forEach.call(document.querySelectorAll("[data-panel]"),function(p){p.hidden=p.dataset.panel!==t});if(t==="stats")renderStats();if(t==="banners")loadB();if(t==="orders")loadO()}
 // ===== orders =====
 var orders=[],ofilter="all";
 var OST=[["all","الكل"],["new","جديد"],["preparing","قيد التجهيز"],["shipping","بالطريق / جاهز"],["delivered","تم التسليم"],["cancelled","ملغي"]];
@@ -268,4 +283,29 @@ function renderStats(){var box=$("stats");box.innerHTML="<p>جاري الحسا�
    +'<h2 class="sub">الأكثر طلبًا</h2>'+bars(top,"قطعة")
    +'<h2 class="sub">الأكثر مشاهدة</h2>'+(tv===null?'<p class="hint">تعذر تحميل المشاهدات. حدّث قواعد Firestore.</p>':bars(tv,"مشاهدة"))
    +'<small class="hint" style="margin-top:14px">«الأكثر طلبًا» يحسب الطلبات غير الملغية. «المبيعات المسلّمة» تحسب الطلبات اللي حالتها «تم التسليم».</small>'})}
+
+// ===== banners =====
+var banners=[],bImg="";
+function loadB(){return db.collection("banners").get().then(function(s){banners=s.docs.map(function(d){var x=d.data();x.id=d.id;return x}).sort(function(a,b){return (a.order||0)-(b.order||0)});renderB()}).catch(function(x){$("blist").textContent="تعذر تحميل الإعلانات ("+x.code+"). حدّث قواعد Firestore."})}
+function bAct(b){return b.action==="product"?"يفتح: "+esc(pName(b.target)):b.action==="category"?"يفتح قسم: "+esc(b.target):b.action==="whatsapp"?"يراسلك على واتساب":"بدون رابط"}
+function renderB(){if(!banners.length){$("blist").innerHTML="<p>ما في إعلانات بعد. الواجهة تعرض البطاقة البنفسجية بس.</p>";return}
+ $("blist").innerHTML=banners.map(function(b,i){return '<div class="row brow'+(b.visible===false?' off':'')+'"><img src="'+b.img+'" alt="" style="width:96px;height:60px;object-fit:cover"><div class="info"><b>'+(b.title?esc(b.title):'(بدون عنوان)')+'</b><small>'+bAct(b)+(b.visible===false?' · مخفي':'')+'</small></div><div class="acts"><button data-ba="up" data-i="'+b.id+'"'+(i===0?' disabled':'')+' aria-label="لفوق">↑</button><button data-ba="down" data-i="'+b.id+'"'+(i===banners.length-1?' disabled':'')+' aria-label="لتحت">↓</button><button data-ba="v" data-i="'+b.id+'">'+(b.visible===false?'إظهار':'إخفاء')+'</button><button data-ba="d" data-i="'+b.id+'">حذف</button></div></div>'}).join("")}
+$("blist").onclick=function(e){var t=e.target.closest("[data-ba]");if(!t)return;var a=t.dataset.ba,i=banners.findIndex(function(x){return x.id===t.dataset.i}),b=banners[i],ref=db.collection("banners").doc(b.id);
+ if(a==="up"||a==="down"){var j=a==="up"?i-1:i+1,o=banners[j];if(!o)return;var bt=db.batch(),oa=b.order||i,ob=o.order||j;if(oa===ob)ob=oa+(a==="up"?-1:1);bt.update(ref,{order:ob});bt.update(db.collection("banners").doc(o.id),{order:oa});bt.commit().then(loadB).catch(function(x){toast("فشل: "+x.code)})}
+ if(a==="v")ref.update({visible:b.visible===false}).then(loadB).catch(function(x){toast("فشل: "+x.code)});
+ if(a==="d"&&confirm("حذف هذا الإعلان؟"))ref.delete().then(function(){toast("تم حذف الإعلان");loadB()}).catch(function(x){toast("فشل: "+x.code)})};
+$("ba").onchange=function(){var v=this.value;$("bpbox").hidden=v!=="product";$("bcbox").hidden=v!=="category";$("bwbox").hidden=v!=="whatsapp";
+ if(v==="product")$("bpr").innerHTML=items.map(function(p){return '<option value="'+p.id+'">'+esc(p.name)+'</option>'}).join("")||'<option value="">ارفع المنتجات أول</option>';
+ if(v==="category"){var c=[];items.forEach(function(p){if(p.cat&&c.indexOf(p.cat)<0)c.push(p.cat)});$("bca").innerHTML=c.map(function(x){return '<option>'+esc(x)+'</option>'}).join("")||'<option value="">ما في أقسام</option>'}};
+$("bimg").onchange=function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){var im=new Image();im.onload=function(){
+  var enc=function(max,q){var s=Math.min(1,max/Math.max(im.width,im.height)),c=document.createElement("canvas");c.width=Math.round(im.width*s);c.height=Math.round(im.height*s);var x=c.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);return c.toDataURL("image/jpeg",q)};
+  var d=enc(1400,.78);if(d.length>350000)d=enc(1400,.65);if(d.length>350000)d=enc(1100,.65);if(d.length>350000)d=enc(900,.6);bImg=d;
+  $("bprev").innerHTML='<img src="'+d+'" alt="" style="width:100%;border-radius:12px;display:block">'+(im.width<im.height?'<small class="hint" style="color:#b45309">الصورة طولية، راح تنقص من فوق وتحت. الأفضل صورة عرضية.</small>':'')};im.src=r.result};r.readAsDataURL(f)};
+$("bform").onsubmit=function(e){e.preventDefault();$("berr").textContent="";
+ if(!bImg){$("berr").textContent="اختر صورة الإعلان";return}
+ if(banners.length>=8){$("berr").textContent="الحد 8 إعلانات. احذف إعلان قديم أول.";return}
+ var act=$("ba").value,tg=act==="product"?$("bpr").value:act==="category"?$("bca").value:act==="whatsapp"?$("bw").value.trim():"";
+ if((act==="product"||act==="category")&&!tg){$("berr").textContent="اختر "+(act==="product"?"المنتج":"القسم");return}
+ var d={img:bImg,title:$("bt").value.trim(),sub:$("bs").value.trim(),action:act,target:tg,visible:true,order:Date.now()};
+ db.collection("banners").add(d).then(function(){toast("تمت إضافة الإعلان");$("bform").reset();bImg="";$("bprev").innerHTML="";["bpbox","bcbox","bwbox"].forEach(function(i){$(i).hidden=true});loadB()}).catch(function(x){$("berr").textContent="فشل الحفظ ("+x.code+"). حدّث قواعد Firestore."})};
 </script></body></html>

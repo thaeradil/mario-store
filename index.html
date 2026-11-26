@@ -115,6 +115,12 @@ textarea.field{resize:vertical}
 .lbbar{position:absolute;bottom:calc(20px + env(safe-area-inset-bottom,0px));left:0;right:0;text-align:center;color:#fff;pointer-events:none}#lbc{display:block;font-size:13px;font-weight:700;margin-bottom:8px;direction:ltr}
 .lbdots{display:flex;justify-content:center;gap:6px;direction:ltr}.lbdots i{width:7px;height:7px;border-radius:4px;background:rgba(255,255,255,.35);transition:width .2s}.lbdots i.on{background:#fff;width:20px}
 @media(prefers-reduced-motion:reduce){.lbtrack{scroll-behavior:auto}.lbdots i{transition:none}}
+.slider{position:relative;margin-bottom:14px}.strack{display:flex;align-items:stretch;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scroll-behavior:smooth;scrollbar-width:none;border-radius:24px;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}.strack::-webkit-scrollbar{display:none}
+.strack>.slide{flex:none;width:100%;min-height:230px;scroll-snap-align:center;scroll-snap-stop:always;margin:0;border-radius:0}
+.bslide{position:relative;display:block;padding:0;border:0;background:#1d1640;color:#fff;text-align:right;cursor:pointer;overflow:hidden}.bslide img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.btx{position:absolute;left:0;right:0;bottom:0;display:block;padding:48px 18px 16px;background:linear-gradient(rgba(10,6,30,0),rgba(10,6,30,.8))}.btx b{display:block;font-size:20px;line-height:1.35;font-weight:800}.btx span{display:block;font-size:14px;opacity:.92;margin-top:2px}
+.sdots{display:flex;justify-content:center;gap:6px;margin-top:8px;direction:ltr}.sdots[hidden]{display:none}.sdots button{width:8px;height:8px;border-radius:4px;border:0;padding:0;background:var(--line);transition:width .25s}.sdots button.on{width:22px;background:var(--brand2)}
+@media(prefers-reduced-motion:reduce){.strack{scroll-behavior:auto}.sdots button{transition:none}}
 #about{margin-top:26px;scroll-margin-top:190px}.about{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px}.about p{margin:0 0 10px}.arow{display:flex;gap:10px;margin-top:6px;font-size:14px}.abtns{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.abtns button{flex:1 1 45%;padding:10px;border-radius:12px;border:1px solid var(--line);background:var(--bg);font-weight:700;color:var(--ink)}
 </style>
 </head>
@@ -127,7 +133,7 @@ textarea.field{resize:vertical}
   <input class="search" id="q" type="search" placeholder="ابحث عن منتج أو موديل طابعة…" aria-label="بحث">
   <div class="chips" id="chips"></div>
 </header>
-<main><section class="hero"><h1>طابعات، أحبار وقطع غيار</h1><p>تصفّح المنتجات، احجز الكمية، وأرسل طلبك مباشرة على واتساب.</p><div class="shiphero" id="shiphero" hidden></div><a href="#list">تصفّح المنتجات</a></section><div class="quick"><button data-act="finder">🔎<span>الحبر المناسب لطابعتك</span></button><button data-act="repair">🛠️<span>طلب صيانة</span></button><button data-act="orders">📦<span>طلباتي</span></button><button data-act="about">ℹ️<span>عن المتجر</span></button></div><div class="steps"><div><b>1</b>اختر المنتج</div><div><b>2</b>احجز الكمية</div><div><b>3</b>أرسل على واتساب</div></div><h2 class="sec" id="list">المنتجات</h2><div class="grid" id="grid"></div><div class="empty" id="empty" hidden>ما لقينا منتج بهذا الاسم. جرّب كلمة ثانية.</div><section id="about"></section><div class="foot">للاستفسار تواصل معنا على <a href="https://wa.me/9647757888027" target="_blank" rel="noopener">واتساب</a></div></main>
+<main><div class="slider"><div class="strack" id="strack" dir="ltr"><section class="hero slide" dir="rtl"><h1>طابعات، أحبار وقطع غيار</h1><p>تصفّح المنتجات، احجز الكمية، وأرسل طلبك مباشرة على واتساب.</p><div class="shiphero" id="shiphero" hidden></div><a href="#list">تصفّح المنتجات</a></section></div><div class="sdots" id="sdots" hidden></div></div><div class="quick"><button data-act="finder">🔎<span>الحبر المناسب لطابعتك</span></button><button data-act="repair">🛠️<span>طلب صيانة</span></button><button data-act="orders">📦<span>طلباتي</span></button><button data-act="about">ℹ️<span>عن المتجر</span></button></div><div class="steps"><div><b>1</b>اختر المنتج</div><div><b>2</b>احجز الكمية</div><div><b>3</b>أرسل على واتساب</div></div><h2 class="sec" id="list">المنتجات</h2><div class="grid" id="grid"></div><div class="empty" id="empty" hidden>ما لقينا منتج بهذا الاسم. جرّب كلمة ثانية.</div><section id="about"></section><div class="foot">للاستفسار تواصل معنا على <a href="https://wa.me/9647757888027" target="_blank" rel="noopener">واتساب</a></div></main>
 
 <div class="sheet-bg" id="bg"><div class="sheet" id="sheet" role="dialog" aria-modal="true"></div></div>
 <button class="cartbar" id="cartbar"></button>
@@ -428,6 +434,26 @@ window.addEventListener("resize",function(){if(!$("lb").hidden){var i=lbIndex();
 window.addEventListener("popstate",function(){if(lbOpen){lbOpen=false;hideViewer()}});
 $("lb").addEventListener("click",function(e){var t=e.target;if(t.closest("[data-lbx]"))return closeViewer();if(t.classList.contains("lbs")){if(Z.s>1.001||(Z.dragged&&Date.now()-Z.dragged<300))return;return closeViewer()}var n=t.closest("[data-lbn]");if(n)lbGo(Number(n.dataset.lbn))});
 document.addEventListener("keydown",function(e){if($("lb").hidden)return;if(e.key==="Escape")closeViewer();if(e.key==="ArrowRight")lbGo(1);if(e.key==="ArrowLeft")lbGo(-1)});
+
+// ---- hero slider ----
+var BANNERS=[],sTimer=null,sHold=0;
+function sCount(){return $("strack").children.length}
+function sIndex(){var t=$("strack");return Math.max(0,Math.min(sCount()-1,Math.round(t.scrollLeft/(t.clientWidth||1))))}
+function sGo(i){var t=$("strack"),n=sCount();if(n<2)return;i=(i+n)%n;t.scrollTo({left:i*t.clientWidth,behavior:"smooth"})}
+function sDots(){var n=sCount(),i=sIndex(),d=$("sdots");d.hidden=n<2;if(d.children.length!==n)d.innerHTML=Array.apply(null,{length:n}).map(function(_,j){return '<button data-si="'+j+'" aria-label="الشريحة '+(j+1)+'"></button>'}).join("");[].forEach.call(d.children,function(b,j){b.classList.toggle("on",j===i)})}
+function sAuto(){clearInterval(sTimer);if(sCount()<2)return;sTimer=setInterval(function(){if(document.hidden||Date.now()<sHold||$("bg").classList.contains("open")||!$("lb").hidden)return;sGo(sIndex()+1)},5000)}
+function renderSlider(){var t=$("strack");[].slice.call(t.querySelectorAll(".bslide")).forEach(function(e){e.remove()});
+  t.insertAdjacentHTML("beforeend",BANNERS.map(function(b,i){return '<button class="slide bslide" dir="rtl" data-bi="'+i+'"><img src="'+b.img+'" alt="'+esc(b.title||"إعلان")+'"'+(i?' loading="lazy"':'')+'>'+((b.title||b.sub)?'<span class="btx">'+(b.title?'<b>'+esc(b.title)+'</b>':'')+(b.sub?'<span>'+esc(b.sub)+'</span>':'')+'</span>':'')+'</button>'}).join(""));
+  t.scrollLeft=0;sDots();sAuto()}
+function bannerAction(b){if(!b)return;
+  if(b.action==="product"){var p=byId(b.target);if(p)return showProduct(p.id);return toast("هذا المنتج غير متوفر حاليًا")}
+  if(b.action==="category"&&b.target){cat=b.target;renderChips();renderGrid();return $("list").scrollIntoView({behavior:"smooth"})}
+  if(b.action==="whatsapp")return openWA(b.target||("مرحبا، أستفسر عن العرض: "+(b.title||"")))}
+(function(){var t=$("strack"),hold=function(){sHold=Date.now()+8000};
+  t.addEventListener("scroll",sDots,{passive:true});["touchstart","pointerdown","wheel"].forEach(function(ev){t.addEventListener(ev,hold,{passive:true})});
+  t.addEventListener("click",function(e){var s=e.target.closest(".bslide");if(s)bannerAction(BANNERS[Number(s.dataset.bi)])});
+  $("sdots").addEventListener("click",function(e){var b=e.target.closest("[data-si]");if(b){hold();sGo(Number(b.dataset.si))}});
+  window.addEventListener("resize",function(){var i=sIndex();t.style.scrollBehavior="auto";t.scrollLeft=i*t.clientWidth;t.style.scrollBehavior=""})})();
 // ---- coupons & cart ----
 var coupon=null,draft=null,cpnErr="";
 function cv(k){if(draft&&draft[k]!=null)return esc(draft[k]);return esc(custSaved()[k]||"")}
@@ -557,6 +583,7 @@ function loadProducts(){
   firebase.firestore().collection("settings").doc("shop").get().then(function(d){var s=d.exists?d.data():{};
     if(s.freeShipMin!=null){FREE_SHIP_MIN=Number(s.freeShipMin)||0;updShipHero()}
     SET.zones=Array.isArray(s.zones)?s.zones.filter(function(z){return z&&z.n}):[];SET.about=s.about||{};renderAbout()}).catch(function(){});
+  firebase.firestore().collection("banners").get().then(function(s){BANNERS=s.docs.map(function(d){var x=d.data();x.id=d.id;return x}).filter(function(b){return b.visible!==false&&b.img}).sort(function(a,b){return (a.order||0)-(b.order||0)});renderSlider()}).catch(function(){});
   firebase.firestore().collection("products").get().then(function(s){
    if(!s.empty){PRODUCTS=s.docs.map(function(d){var x=d.data();x.id=d.id;x.color="#12355b";x.imgs=x.imgs||[];return x}).filter(function(p){return p.visible!==false}).sort(function(a,b){return (a.order||0)-(b.order||0)})}
    fin();
